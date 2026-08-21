@@ -22,6 +22,8 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from ..core.approval_gateway import ApprovalRequest
     from ..core.orchestrator import ScanOrchestrator
 
+from .operator_page import OPERATOR_PAGE
+
 
 def create_app(orchestrator: ScanOrchestrator | None = None) -> FastAPI:
     if FastAPI is None:
@@ -47,6 +49,17 @@ def create_app(orchestrator: ScanOrchestrator | None = None) -> FastAPI:
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/", include_in_schema=False)
+    def operator_console() -> Any:
+        """Serve the dependency-free operator console shell.
+
+        The page contains no data; it authenticates to the JSON API with the
+        bearer token the operator enters in the browser.
+        """
+        from fastapi.responses import HTMLResponse
+
+        return HTMLResponse(OPERATOR_PAGE)
 
     @app.get("/reports")
     def reports(authorization: str | None = Header(default=None)) -> dict[str, Any]:

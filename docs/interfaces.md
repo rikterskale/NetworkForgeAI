@@ -23,14 +23,27 @@ attempts to escape that directory is rejected.
 
 ## Dashboard API
 
-The dashboard is read-only and requires `Authorization: Bearer <token>` for
-all endpoints except `/health`:
+The dashboard requires `Authorization: Bearer <token>` for all endpoints except
+`/health` and the operator console shell:
 
 - `GET /health` — liveness response.
+- `GET /` — dependency-free operator console (static shell; no data without a token).
 - `GET /reports` — relative report paths.
 - `GET /reports/{path}` — report content, with JSON decoded when applicable.
 - `GET /scans` — persisted scan summaries.
 - `GET /scans/{scan_id}` — persisted scan state.
+- `GET /scans/{scan_id}/findings` — persisted findings for one scan.
 
-The dashboard does not start scans or approve actions. Approval and execution
-remain controlled by the host-side gateway.
+When a live `ScanOrchestrator` is attached via
+`create_app(orchestrator=...)`, operator endpoints are enabled; without an
+attached scan they return `503` (fail closed):
+
+- `GET /agents` — live agent statuses and scan status.
+- `GET /approvals` — pending approval queue and emergency-stop state.
+- `POST /approvals/{request_id}/approve|reject` — audited gateway decisions.
+- `POST /scan/pause|resume|stop` — steering controls mapped to orchestrator
+  lifecycle methods.
+
+Approval decisions made through the dashboard flow through the same human
+approval gateway and audit trail as every other path. The dashboard never
+starts scans.

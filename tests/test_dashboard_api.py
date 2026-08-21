@@ -155,3 +155,12 @@ def test_real_orchestrator_attach(tmp_path, env, monkeypatch):
     payload = client.get("/agents", headers=AUTH).json()
     assert payload["scan_id"] == orchestrator.scan_id
     assert payload["agents"] == []
+
+
+def test_operator_console_shell_served_without_data(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    body = response.text
+    assert "Operator Console" in body
+    assert "test-token-123" not in body  # no secrets baked into the shell
+    assert "example.com" not in body  # no data in the static shell

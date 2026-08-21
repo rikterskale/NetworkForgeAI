@@ -198,14 +198,14 @@
 ### Web Dashboard
 | ID | Feature | Status | Tech Stack |
 |----|---------|--------|------------|
-| GUI-001 | React frontend application | 📋 | React + TypeScript |
-| GUI-002 | Live scan monitoring | 📋 | WebSocket real-time updates |
-| GUI-003 | Agent graph visualization | 📋 | D3.js or Cytoscape |
-| GUI-004 | Approval workflow UI | 📋 | Modal dialogs with details |
-| GUI-005 | Findings dashboard | 🚧 | Read-only persisted scan summaries |
-| GUI-006 | Report generator | 🚧 | Read-only report discovery and retrieval |
-| GUI-007 | Historical runs browser | 🚧 | Scan state listing endpoint |
-| GUI-008 | Steering controls | 📋 | Live agent redirection |
+| GUI-001 | React frontend application | ✅ | Dependency-free single-file operator console at `GET /` (Option A; no build chain) |
+| GUI-002 | Live scan monitoring | ✅ | `/agents` + operator console polling |
+| GUI-003 | Agent graph visualization | 🚧 | Agent status table shipped; graph rendering pending |
+| GUI-004 | Approval workflow UI | ✅ | Approval queue with approve/reject in console; audited via gateway |
+| GUI-005 | Findings dashboard | ✅ | Read-only persisted scan summaries (`/scans`, `/scans/{id}/findings`) |
+| GUI-006 | Report generator | ✅ | Read-only report discovery and retrieval |
+| GUI-007 | Historical runs browser | ✅ | Scan state listing endpoint |
+| GUI-008 | Steering controls | ✅ | Pause/resume/emergency-stop via `/scan/*` endpoints; fail closed without live scan |
 | GUI-009 | User authentication | 📋 | Token-based auth |
 | GUI-010 | Role-based access control | 📋 | Admin/Operator/Viewer roles |
 
@@ -442,6 +442,7 @@ Based on current progress (Phase 9 active), the following capabilities are highe
 
 | Date | Phase | Changes |
 |------|-------|---------|
+| Current Session | Phase 5 (cont.) | ✅ Dashboard API: approval queue, steering controls, agent status, per-scan findings endpoints; dependency-free operator console at `GET /` (GUI-001/002/004/005/006/007/008) |
 | Current Session | Phase 9 (cont.) | ✅ Documentation audit: historical PHASE*.md snapshots archived to `docs/history/`; DOC-002/003/004/006/007 verified against code and marked complete; installation guide updated with `[llm]` contributor extra |
 | Current Session | Phase 7 (cont.) | ✅ INT-004 Jira issue creation and INT-101 Slack finding summaries via shared HTTPS-only JSON transport (`integrations/notifications.py`) |
 | Current Session | Phase 3 (cont.) | ✅ VAL-002 exploit validation runner: approved PoC commands execute only inside the Docker sandbox, fail closed on missing approval/scope/sandbox |
