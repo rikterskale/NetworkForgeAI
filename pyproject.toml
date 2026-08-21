@@ -60,3 +60,8 @@ omit = [
     "networkforgeai/models/google_adapter.py",
     "networkforgeai/models/openai_adapter.py",
 ]
+
+[tool.coverage.report]
+exclude_also = [
+    "@abstractmethod",
+]
