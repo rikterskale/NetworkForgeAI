@@ -4,6 +4,8 @@ from typing import Any, cast
 
 from .base_tool import BaseTool, ToolCategory, ToolResult, ToolRiskLevel
 from .browser_tool import BrowserAutomationTool
+from .graphql_tool import GraphQLProbeTool
+from .jwt_tool import JwtAnalyzerTool
 from .metasploit_tool import MetasploitTool
 from .nmap_tool import MasscanTool, NmapTool
 from .password_tools import CrackMapExecTool, HydraTool, ImpacketTools
@@ -28,6 +30,8 @@ __all__ = [
     "ImpacketTools",
     "MetasploitTool",
     "BrowserAutomationTool",
+    "JwtAnalyzerTool",
+    "GraphQLProbeTool",
 ]
 
 
@@ -44,6 +48,8 @@ def get_available_tools() -> dict[str, type[BaseTool]]:
         "impacket": ImpacketTools,
         "metasploit": MetasploitTool,
         "browser": BrowserAutomationTool,
+        "jwt-analyzer": JwtAnalyzerTool,
+        "graphql-probe": GraphQLProbeTool,
     }
 
 

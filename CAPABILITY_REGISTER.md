@@ -102,8 +102,8 @@
 | TLS-102 | Burp Suite Community | 🔍 | License/automation constraints |
 | TLS-103 | OWASP ZAP integration | ✅ | CLI wrapper with alert parsing |
 | TLS-104 | Custom browser automation | ✅ | `tools/browser_tool.py`: headless Playwright surface discovery (optional `[browser]` extra; sandbox image needs Chromium) |
-| TLS-105 | JWT tool integration | 📋 | Python library |
-| TLS-106 | GraphQL security tools | 📋 | InQL, GraphQL map |
+| TLS-105 | JWT tool integration | ✅ | `tools/jwt_tool.py`: passive decode + misconfiguration checks (alg=none, key-header/kid injection, expiry) |
+| TLS-106 | GraphQL security tools | ✅ | `tools/graphql_tool.py`: introspection, IDE exposure, batching, and verbose-error probes (stdlib only) |
 
 ### Cloud & Infrastructure
 | ID | Tool/Capability | Status | Target Platforms |
@@ -131,7 +131,7 @@
 - **ToolRiskLevel**: LOW/MEDIUM/HIGH/CRITICAL classification
 - **ToolCategory**: NETWORK_SCAN, WEB_SCAN, PASSWORD_ATTACK, etc.
 
-#### Implemented Tools (10 Total)
+#### Implemented Tools (12 Total)
 1. **NmapTool** - Network scanning with service detection
 2. **MasscanTool** - High-speed port scanning
 3. **NiktoTool** - Web server vulnerability scanning
@@ -142,6 +142,8 @@
 8. **ImpacketTools** - SMB/LDAP protocol tools (HIGH risk, HITL required)
 9. **MetasploitTool** - Exploitation console (CRITICAL risk, HITL required)
 10. **BrowserAutomationTool** - Playwright surface discovery (optional `[browser]` extra)
+11. **JwtAnalyzerTool** - JWT misconfiguration analysis (LOW risk, passive)
+12. **GraphQLProbeTool** - GraphQL endpoint probing (MEDIUM risk)
 
 #### Safety Features Implemented
 - ✅ Target validation before execution
@@ -250,8 +252,8 @@
 | CMP-001 | OWASP Top 10 mapping | ✅ | `reporting/compliance.py` (2021 categories) |
 | CMP-002 | PTES alignment | ✅ | Phase mapping in `reporting/compliance.py` |
 | CMP-003 | NIST CSF mapping | ✅ | CSF v1.1 categories in `reporting/compliance.py` |
-| CMP-004 | ISO 27001 controls | 🔍 | Compliance reporting |
-| CMP-005 | PCI-DSS requirements | 🔍 | Payment card industry |
+| CMP-004 | ISO 27001 controls | ✅ | ISO/IEC 27001:2022 Annex A mapping in `reporting/compliance.py` |
+| CMP-005 | PCI-DSS requirements | ✅ | PCI-DSS v4 requirement mapping in `reporting/compliance.py` |
 
 ---
 
@@ -271,7 +273,7 @@
 | ID | Platform | Status | Integration Type |
 |----|----------|--------|------------------|
 | INT-101 | Slack | ✅ | Finding summaries to incoming webhooks (`integrations/notifications.py`, HTTPS-only) |
-| INT-102 | Microsoft Teams | 📋 | Notifications, approvals |
+| INT-102 | Microsoft Teams | ✅ | Message-card summaries to incoming webhooks (`integrations/notifications.py`, HTTPS-only) |
 | INT-103 | Discord | 🔍 | Notifications |
 | INT-104 | Email (SMTP) | 📋 | Reports, alerts |
 
@@ -434,15 +436,16 @@ installed in CI so optional provider adapters typecheck against real stubs.
 Based on current progress (Phase 9 documentation complete; Phases 5–7 partially
 delivered), the following capabilities are highest priority:
 
-1. **TLS-105/106**: JWT tooling and GraphQL security integrations (Phase 3)
+1. **LLM-008**: Migrate the Google adapter from the EOL `google-generativeai` SDK to `google-genai` (Phase 4)
 2. **TUI-001..004**: Rich terminal UI (progress, live logs, approval dialogs) (Phase 5)
-3. **CMP-004/005**: ISO 27001 and PCI-DSS compliance mappings (Phase 6)
-4. **INT-102**: Microsoft Teams notifications over the shared HTTPS transport (Phase 7)
-5. **LLM-008**: Migrate the Google adapter from the EOL `google-generativeai` SDK to `google-genai` (Phase 4)
+3. **GUI-005+**: Dashboard findings drill-down / trend views beyond read-only summaries (Phase 5)
+4. **RPT-007 / INT-104**: Email delivery of reports and alerts over SMTP with TLS (Phases 6–7)
+5. **TLS-201..205**: Cloud & AD testing tool integrations (Pacu, ScoutSuite, BloodHound) (Phase 3)
 
 Previously listed items (LLM adapters, CLI, dashboard MVP, validation engine,
-dashboard RBAC, agent graph, Metasploit, PDF reports, browser automation, GitLab
-CI parity) are complete and tracked in their phase tables above.
+dashboard RBAC, agent graph, Metasploit, PDF reports, browser automation,
+GitLab CI parity, Teams notifications, JWT/GraphQL tools, ISO/PCI mappings) are
+complete and tracked in their phase tables above.
 
 ---
 
@@ -450,6 +453,9 @@ CI parity) are complete and tracked in their phase tables above.
 
 | Date | Phase | Changes |
 |------|-------|---------|
+| Current Session | Phase 6/7 (cont.) | ✅ CMP-004/005: ISO/IEC 27001:2022 Annex A and PCI-DSS v4 mappings in `reporting/compliance.py` (annotated + summarized like OWASP/NIST) |
+| Current Session | Phase 3 (cont.) | ✅ TLS-105/106: JWT analyzer (`jwt-analyzer`) and GraphQL probe (`graphql-probe`) tools — 12 tools total |
+| Current Session | Phase 7 (cont.) | ✅ INT-102 Microsoft Teams message-card notifications via shared HTTPS-only transport |
 | Current Session | Phase 6/7 (cont.) | ✅ RPT-005 dependency-free executive-summary PDF (`to_pdf`, per-scan `executive-summary.pdf`); CICD-002 GitLab CI parity template (`templates/gitlab-ci-networkforgeai.yml`) |
 | Current Session | Phase 3 (cont.) | ✅ TLS-104 browser automation: `tools/browser_tool.py` — headless Playwright surface discovery behind the optional `[browser]` extra |
 | Current Session | Phase 4 (cont.) | 🔍 LLM-008 registered: migrate `models/google_adapter.py` from EOL `google-generativeai` to the new `google-genai` SDK |

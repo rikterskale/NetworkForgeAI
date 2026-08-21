@@ -33,7 +33,8 @@ are preserved in metadata during normalization.
 ## Compliance mappings
 
 `networkforgeai.reporting.compliance` maps finding types to standard
-frameworks: OWASP Top 10 (2021), PTES phases, and NIST CSF v1.1 categories.
+frameworks: OWASP Top 10 (2021), PTES phases, NIST CSF v1.1 categories,
+ISO/IEC 27001:2022 Annex A controls, and PCI-DSS v4 requirements.
 Use `annotate_compliance` to attach the mappings to normalized findings and
 `compliance_summary` for per-framework coverage counts in reports.
 

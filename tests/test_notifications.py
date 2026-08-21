@@ -84,3 +84,22 @@ def test_jira_notifier_builds_issue_payload_and_auth(capture):
 def test_webhook_notifier_still_https_only():
     with pytest.raises(ValueError):
         WebhookNotifier("http://localhost/hook")
+
+
+def test_teams_notifier_posts_message_card_and_enforces_https(capture):
+    from networkforgeai.integrations import TeamsNotifier
+
+    with pytest.raises(ValueError):
+        TeamsNotifier("http://outlook.office.invalid/webhook/xyz")
+    notifier = TeamsNotifier("https://outlook.office.invalid/webhook/abc/xyz")
+    status = notifier.notify_findings(FINDINGS, scan_id="scan-123")
+    assert status == 200
+    payload = json.loads(capture["body"])
+    assert payload["@type"] == "MessageCard"
+    assert payload["summary"].startswith("NetworkForgeAI scan completed")
+    assert "scan-123" in payload["summary"]
+    # Critical findings drive the red theme color
+    assert payload["themeColor"] == "C62828"
+    facts = {f["name"]: f["value"] for f in payload["sections"][0]["facts"]}
+    assert facts == {"Total findings": "2", "Critical": "1", "Low": "1"}
+    assert any("Top findings" in s.get("activityTitle", "") for s in payload["sections"])

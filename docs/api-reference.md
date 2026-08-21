@@ -95,6 +95,7 @@ HTTPS-only JSON transport shared by both notifiers; HTTP endpoints raise
 
 - `SlackNotifier(webhook_url).notify_findings(findings, scan_id=None) -> int`
 - `JiraNotifier(base_url, email, api_token, project_key).create_issue_for_finding(finding) -> int`
+- `TeamsNotifier(webhook_url).notify_findings(findings, scan_id=None) -> int`
 - `summarize_findings(findings) -> dict` — sanitized severity summary.
 
 ### `networkforgeai.integrations.webhooks`

@@ -1,6 +1,7 @@
-"""Notification integrations for findings: Slack (INT-101) and Jira (INT-004).
+"""Notification integrations for findings: Slack (INT-101), Jira (INT-004),
+and Microsoft Teams (INT-102).
 
-Both integrations share an HTTPS-only JSON transport. Credentials are supplied
+All integrations share an HTTPS-only JSON transport. Credentials are supplied
 explicitly by the operator and never logged; payloads contain sanitized finding
 summaries only.
 """
@@ -14,7 +15,13 @@ from urllib.request import Request, urlopen
 
 from ..reporting.models import prepare_findings
 
-__all__ = ["HttpsJsonClient", "JiraNotifier", "SlackNotifier", "summarize_findings"]
+__all__ = [
+    "HttpsJsonClient",
+    "JiraNotifier",
+    "SlackNotifier",
+    "TeamsNotifier",
+    "summarize_findings",
+]
 
 _SEVERITY_ORDER = ("critical", "high", "medium", "low", "informational")
 _MAX_FINDINGS_IN_MESSAGE = 10
@@ -99,6 +106,48 @@ class SlackNotifier:
                 }
             )
         return self.client.post({"text": header, "blocks": blocks})
+
+
+class TeamsNotifier:
+    """Post sanitized finding summaries to a Microsoft Teams incoming webhook.
+
+    Uses the legacy Office 365 connector message-card schema, which is what
+    Teams incoming webhooks accept. The endpoint must use HTTPS.
+    """
+
+    def __init__(self, webhook_url: str, timeout: float = 10.0):
+        self.client = HttpsJsonClient(webhook_url, headers={})
+        self.timeout = timeout
+
+    def notify_findings(self, findings: list[dict[str, Any]], scan_id: str | None = None) -> int:
+        summary = summarize_findings(findings)
+        title = "NetworkForgeAI scan completed" + (f" ({scan_id})" if scan_id else "")
+        facts = [{"name": "Total findings", "value": str(summary["total"])}]
+        facts += [
+            {"name": severity.capitalize(), "value": str(count)}
+            for severity, count in summary["by_severity"].items()
+        ]
+        sections: list[dict[str, Any]] = [
+            {
+                "activityTitle": title,
+                "facts": facts,
+                "markdown": True,
+            }
+        ]
+        if summary["top_findings"]:
+            details = "\n".join(
+                f"- **{item['severity']}** {item['title']} — {item['target']}"
+                for item in summary["top_findings"]
+            )
+            sections.append({"activityTitle": "Top findings", "text": details})
+        payload = {
+            "@type": "MessageCard",
+            "@context": "https://schema.org",
+            "summary": title,
+            "themeColor": "C62828" if summary["by_severity"].get("critical") else "36a64f",
+            "sections": sections,
+        }
+        return self.client.post(payload)
 
 
 class JiraNotifier:

@@ -6,8 +6,10 @@ from networkforgeai.core.scope import ScopePolicy
 from networkforgeai.tools import (
     BrowserAutomationTool,
     CrackMapExecTool,
+    GraphQLProbeTool,
     HydraTool,
     ImpacketTools,
+    JwtAnalyzerTool,
     MetasploitTool,
     NmapTool,
 )
@@ -205,4 +207,80 @@ def test_browser_dry_run_is_allowed_without_gateway():
     tool = BrowserAutomationTool(dry_run=True)
     tool.scope_policy = ScopePolicy(["app.example.test"])
     result = tool.execute("app.example.test")
+    assert result.success and "[DRY RUN]" in result.stdout
+
+
+def _b64url(data: bytes) -> str:
+    import base64
+
+    return base64.urlsafe_b64encode(data).decode().rstrip("=")
+
+
+def test_jwt_tool_rejects_non_jwt_input():
+    with pytest.raises(ValueError):
+        JwtAnalyzerTool().build_command("example.com", {})
+
+
+def test_jwt_tool_flags_alg_none_and_missing_expiry():
+    tool = JwtAnalyzerTool()
+    header = _b64url(b'{"alg": "none", "typ": "JWT"}')
+    payload = _b64url(b'{"sub": "1"}')
+    cmd = tool.build_command("unused", {"token": f"{header}.{payload}."})
+    assert cmd[3] == f"{header}.{payload}."
+    findings = {
+        f["type"]
+        for f in tool.parse_findings(
+            json.dumps(
+                {
+                    "header": {"alg": "none"},
+                    "claims": {},
+                    "findings": [{"type": "jwt_alg_none", "summary": "x"}],
+                }
+            ),
+            "",
+        )
+    }
+    assert findings == {"jwt_alg_none"}
+    # No issues path yields informational finding; secrets in claims are dropped by the script
+    clean = tool.parse_findings(json.dumps({"header": {}, "claims": {}, "findings": []}), "")
+    assert clean[0]["type"] == "jwt_no_issues"
+    bad = tool.parse_findings("garbage", "")
+    assert bad[0]["type"] == "jwt_parse_error"
+    invalid = tool.parse_findings(json.dumps({"error": "not a decodable JWT: x"}), "")
+    assert invalid[0]["type"] == "jwt_invalid"
+
+
+def test_graphql_probe_builds_url_and_parses():
+    tool = GraphQLProbeTool()
+    cmd = tool.build_command("api.example.test/graphql")
+    assert cmd[0] == "python" and cmd[3] == "https://api.example.test/graphql" and cmd[4] == "10"
+    payload = {
+        "endpoint": "https://api.example.test/graphql",
+        "findings": [
+            {"type": "introspection_enabled", "summary": "on"},
+            {"type": "batching_accepted", "summary": "yes"},
+        ],
+    }
+    findings = tool.parse_findings(json.dumps(payload), "")
+    severities = {f["type"]: f["severity"] for f in findings}
+    assert severities["introspection_enabled"] == "medium"
+    assert severities["batching_accepted"] == "low"
+    empty = tool.parse_findings(json.dumps({"endpoint": "x", "findings": []}), "")
+    assert empty[0]["type"] == "graphql_no_issues"
+    broken = tool.parse_findings("<html>", "")
+    assert broken[0]["type"] == "graphql_probe_error"
+
+
+def test_new_tools_registered_and_dry_run_safe():
+    from networkforgeai.tools import get_available_tools, get_tool_by_name
+
+    tools = get_available_tools()
+    assert "jwt-analyzer" in tools and "graphql-probe" in tools
+    analyzer = get_tool_by_name("jwt-analyzer", dry_run=True)
+    analyzer.scope_policy = ScopePolicy(["t.example"])
+    token = _b64url(b'{"alg":"HS256"}') + "." + _b64url(b'{"exp":4102444800}') + ".sig"
+    result = analyzer.execute(
+        "t.example",
+        {"token": token},
+    )
     assert result.success and "[DRY RUN]" in result.stdout
