@@ -106,6 +106,7 @@ class ScanOrchestrator:
         """Register an agent with the orchestrator."""
         agent.approval_gateway = self.approval_gateway
         agent.message_bus = self.message_bus
+        agent.knowledge_base = self.knowledge_base
         self.agents[agent.id] = agent
         asyncio.create_task(self.message_bus.register(agent.id)) if self._loop_running() else None
 

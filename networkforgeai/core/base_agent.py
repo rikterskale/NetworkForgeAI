@@ -14,6 +14,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from .approval_gateway import ApprovalGateway, ApprovalStatus, RiskLevel
+from .knowledge_base import KnowledgeBase
 from .message_bus import AgentMessage, MessageBus
 
 
@@ -67,6 +68,7 @@ class BaseAgent(ABC):
         self.approval_gateway = approval_gateway
         self.message_bus = message_bus
         self.model_adapter = model_adapter
+        self.knowledge_base: Optional[KnowledgeBase] = kwargs.get("knowledge_base")
         self.tool_registry = tool_registry or {}
         self.status = AgentStatus.IDLE
         self.current_task: Optional[str] = None
@@ -220,7 +222,16 @@ class BaseAgent(ABC):
         """Run a model-backed analysis with retry and bounded context when configured."""
         from ..models.base_adapter import Message
 
-        messages = [Message(role="user", content=f"{prompt}\nContext: {context}")]
+        retrieved_context = ""
+        if self.knowledge_base is not None:
+            matches = await self.knowledge_base.retrieve(prompt, top_k=5, min_score=0.25)
+            if matches:
+                retrieved_context = "\nRetrieved knowledge:\n" + "\n".join(
+                    f"- {match.document.text}" for match in matches
+                )
+        messages = [
+            Message(role="user", content=f"{prompt}\nContext: {context}{retrieved_context}")
+        ]
         if hasattr(self.model_adapter, "prepare_context"):
             messages = self.model_adapter.prepare_context(messages)
         if hasattr(self.model_adapter, "chat_with_retry"):
