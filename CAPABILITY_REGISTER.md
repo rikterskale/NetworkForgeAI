@@ -1,7 +1,7 @@
 # NetworkForgeAI Capability Register & Roadmap
 
-**Last Updated:** Phase 2 Complete  
-**Status:** Core architecture prototype hardened; end-to-end platform remains in progress
+**Last Updated:** Phase 8 Started
+**Status:** Core platform foundations and CI quality gates verified; end-to-end platform remains in progress
 **Safety Model:** Human-in-the-Loop (HITL) Required for All Actions
 
 ---
@@ -182,18 +182,18 @@
 
 ---
 
-## 💻 Phase 5: User Interfaces (📋 PLANNED)
+## 💻 Phase 5: User Interfaces (🚧 IN PROGRESS)
 
 ### Command Line Interface (CLI)
 | ID | Feature | Status | Notes |
 |----|---------|--------|-------|
-| CLI-001 | Main entry point | 📋 | `networkforgeai` command |
-| CLI-002 | Scan initiation workflow | 📋 | Guided target setup |
+| CLI-001 | Main entry point | ✅ | `networkforgeai` command |
+| CLI-002 | Scan initiation workflow | ✅ | Explicit target and scope setup |
 | CLI-003 | Real-time status display | 📋 | TUI with rich library |
 | CLI-004 | Approval prompt interface | 📋 | Interactive HITL dialogs |
-| CLI-005 | Results viewer | 📋 | Filter, search, export |
-| CLI-006 | Configuration manager | 📋 | Profile management |
-| CLI-007 | Help & documentation | 📋 | Context-sensitive help |
+| CLI-005 | Results viewer | ✅ | Safe report listing and viewing |
+| CLI-006 | Configuration manager | ✅ | Safety configuration validation |
+| CLI-007 | Help & documentation | ✅ | Argparse help and interface guide |
 
 ### Web Dashboard
 | ID | Feature | Status | Tech Stack |
@@ -202,9 +202,9 @@
 | GUI-002 | Live scan monitoring | 📋 | WebSocket real-time updates |
 | GUI-003 | Agent graph visualization | 📋 | D3.js or Cytoscape |
 | GUI-004 | Approval workflow UI | 📋 | Modal dialogs with details |
-| GUI-005 | Findings dashboard | 📋 | Filterable table + cards |
-| GUI-006 | Report generator | 📋 | Multi-format export |
-| GUI-007 | Historical runs browser | 📋 | Searchable archive |
+| GUI-005 | Findings dashboard | 🚧 | Read-only persisted scan summaries |
+| GUI-006 | Report generator | 🚧 | Read-only report discovery and retrieval |
+| GUI-007 | Historical runs browser | 🚧 | Scan state listing endpoint |
 | GUI-008 | Steering controls | 📋 | Live agent redirection |
 | GUI-009 | User authentication | 📋 | Token-based auth |
 | GUI-010 | Role-based access control | 📋 | Admin/Operator/Viewer roles |
@@ -219,24 +219,24 @@
 
 ---
 
-## 📁 Phase 6: Data Management & Reporting (📋 PLANNED)
+## 📁 Phase 6: Data Management & Reporting (🚧 IN PROGRESS)
 
 ### Findings Management
 | ID | Capability | Status | Notes |
 |----|-----------|--------|-------|
-| DAT-001 | Finding data model | 📋 | Standardized schema |
-| DAT-002 | Evidence attachment | 📋 | Screenshots, logs, PoCs |
-| DAT-003 | Deduplication logic | 📋 | Merge duplicate findings |
-| DAT-004 | Severity normalization | 📋 | CVSS + custom scoring |
-| DAT-005 | Remediation templates | 📋 | Pre-written guidance |
+| DAT-001 | Finding data model | ✅ | Canonical validated dataclass |
+| DAT-002 | Evidence attachment | ✅ | Typed evidence with sensitive redaction |
+| DAT-003 | Deduplication logic | ✅ | Stable type/target/title identity |
+| DAT-004 | Severity normalization | ✅ | Informational/low/medium/high/critical mapping |
+| DAT-005 | Remediation templates | ✅ | Baseline guidance for core finding types |
 
 ### Report Generation
 | ID | Format | Status | Use Case |
 |----|--------|--------|----------|
-| RPT-001 | Markdown | 📋 | Developer-friendly reports |
-| RPT-002 | JSON | 📋 | Machine consumption, APIs |
-| RPT-003 | CSV | 📋 | Spreadsheet analysis |
-| RPT-004 | SARIF | 📋 | IDE integration, CI/CD |
+| RPT-001 | Markdown | ✅ | Developer-friendly reports |
+| RPT-002 | JSON | ✅ | Machine consumption, APIs |
+| RPT-003 | CSV | ✅ | Spreadsheet analysis |
+| RPT-004 | SARIF | ✅ | IDE integration, CI/CD |
 | RPT-005 | PDF | 🔍 | Executive summaries |
 | RPT-006 | HTML | 📋 | Interactive reports |
 | RPT-007 | Email delivery | 📋 | Automated distribution |
@@ -252,7 +252,7 @@
 
 ---
 
-## 🔌 Phase 7: Integrations & CI/CD (📋 PLANNED)
+## 🔌 Phase 7: Integrations & CI/CD (🚧 IN PROGRESS)
 
 ### Version Control & Issue Tracking
 | ID | Platform | Status | Integration Type |
@@ -275,7 +275,7 @@
 ### CI/CD Platforms
 | ID | Platform | Status | Capabilities |
 |----|----------|--------|--------------|
-| CICD-001 | GitHub Actions | 📋 | Block on critical findings |
+| CICD-001 | GitHub Actions | 🚧 | Findings policy gate and readiness artifacts |
 | CICD-002 | GitLab CI | 📋 | Block on critical findings |
 | CICD-003 | Jenkins | 📋 | Plugin or webhook |
 | CICD-004 | CircleCI | 🔍 | Orb development |
@@ -291,26 +291,26 @@
 
 ---
 
-## 🧪 Phase 8: Testing & Quality Assurance (📋 PLANNED)
+## 🧪 Phase 8: Testing & Quality Assurance (🚧 IN PROGRESS)
 
 ### Test Coverage
 | ID | Area | Status | Notes |
 |----|------|--------|-------|
-| TST-001 | Unit tests | 📋 | Pytest framework |
-| TST-002 | Integration tests | 📋 | End-to-end workflows |
-| TST-003 | Agent behavior tests | 📋 | Mock LLM responses |
-| TST-004 | Safety mechanism tests | 📋 | Approval bypass prevention |
+| TST-001 | Unit tests | ✅ | Pytest framework and regression coverage |
+| TST-002 | Integration tests | ✅ | Reporting, webhook, and workflow tests |
+| TST-003 | Agent behavior tests | ✅ | Mock approvals and model-independent paths |
+| TST-004 | Safety mechanism tests | ✅ | Approval bypass prevention and fail-closed checks |
 | TST-005 | Performance tests | 🔍 | Load testing agents |
 | TST-006 | Security tests | 🔍 | Pen-test the pentester |
 
 ### Quality Gates
 | ID | Gate | Status | Criteria |
 |----|------|--------|----------|
-| QA-001 | Code linting | 📋 | Ruff, Black |
+| QA-001 | Code linting | ✅ | Ruff checks and format verification in CI |
 | QA-002 | Type checking | 📋 | MyPy strict mode |
-| QA-003 | Documentation coverage | 📋 | Docstrings required |
-| QA-004 | Test coverage threshold | 📋 | >80% line coverage |
-| QA-005 | Security scan | 📋 | Bandit, Semgrep |
+| QA-003 | Documentation coverage | ✅ | Documentation audit in CI |
+| QA-004 | Test coverage threshold | ✅ | >90% line coverage |
+| QA-005 | Security scan | ✅ | Bandit and pip-audit in CI; Semgrep remains future work |
 
 ---
 

@@ -20,13 +20,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: pip
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev,runtime]"
+      - run: python -m pip install --upgrade "setuptools>=83"
       - run: ruff check networkforgeai tests tools
       - run: ruff format --check networkforgeai tests tools
       - run: bandit -q -r networkforgeai -ll
@@ -41,15 +42,15 @@ jobs:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev,runtime]"
-      - run: pytest -q --cov=networkforgeai --cov-report=xml --cov-report=term-missing --cov-fail-under=50
-      - uses: actions/upload-artifact@v4
+      - run: python -m pytest -q --cov=networkforgeai --cov-report=xml --cov-report=term-missing --cov-fail-under=90
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-${{ matrix.python-version }}
@@ -60,32 +61,45 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - run: python tools/ci_docs_audit.py --json | tee docs-audit.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: documentation-audit
           path: docs-audit.json
+
+  findings-policy:
+    name: Findings policy gate
+    needs: [tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -e ".[runtime]"
+      - run: python tools/ci_findings_gate.py tests/fixtures/ci-findings-pass.json --json
 
   container:
     name: Container verification
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: docker compose config --quiet
       - run: docker build --tag networkforgeai:ci .
 
   readiness:
     name: User readiness gate
-    needs: [quality, tests, documentation, container]
+    needs: [quality, tests, documentation, container, findings-policy]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -93,7 +107,7 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev,runtime]"
       - run: python tools/user_readiness.py --json | tee user-readiness.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: user-readiness

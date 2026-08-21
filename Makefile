@@ -12,7 +12,7 @@ lint:
 	ruff format --check networkforgeai tests tools
 
 test:
-	pytest -q --cov=networkforgeai --cov-report=term-missing --cov-fail-under=50
+	pytest -q --cov=networkforgeai --cov-report=term-missing --cov-fail-under=90
 
 security:
 	bandit -q -r networkforgeai -ll
@@ -20,6 +20,10 @@ security:
 
 docs:
 	$(PYTHON) tools/ci_docs_audit.py
+
+findings-gate:
+	@test -n "$(INPUT)" || (echo "Usage: make findings-gate INPUT=path/to/findings.json" && exit 2)
+	$(PYTHON) tools/ci_findings_gate.py "$(INPUT)" --json
 
 readiness:
 	$(PYTHON) tools/user_readiness.py

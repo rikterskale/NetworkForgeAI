@@ -1,0 +1,14 @@
+[
+  {
+    "type": "informational_inventory",
+    "target": "authorized-test-target",
+    "severity": "informational",
+    "status": "validated"
+  },
+  {
+    "type": "legacy-critical-example",
+    "target": "authorized-test-target",
+    "severity": "critical",
+    "status": "remediated"
+  }
+]

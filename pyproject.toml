@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=83"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -59,4 +59,9 @@ omit = [
     "networkforgeai/models/anthropic_adapter.py",
     "networkforgeai/models/google_adapter.py",
     "networkforgeai/models/openai_adapter.py",
+]
+
+[tool.coverage.report]
+exclude_also = [
+    "@abstractmethod",
 ]

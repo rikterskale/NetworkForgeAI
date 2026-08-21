@@ -209,6 +209,7 @@ jobs:
 - [Approval Workflow](docs/approval-system.md)
 - [Reporting Guide](docs/reporting.md)
 - [CI/CD Integration](docs/ci-cd.md)
+- [Interface Guide](docs/interfaces.md)
 - [Ethical Guidelines](docs/ethics.md)
 
 ## License
