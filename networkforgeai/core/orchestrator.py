@@ -157,9 +157,10 @@ class ScanOrchestrator:
         Coordinates agents in phases:
         1. Reconnaissance (passive and active)
         2. Vulnerability identification
-        3. Exploitation (with approval)
-        4. Post-exploitation (with approval)
-        5. Reporting
+        3. Attack path planning
+        4. Exploitation (with approval)
+        5. Post-exploitation (with approval)
+        6. Quality assurance on findings
         """
         if not self.agents:
             raise ValueError("No agents registered for scan")
@@ -186,6 +187,15 @@ class ScanOrchestrator:
                 print("[Orchestrator] Starting vulnerability scanning phase...")
                 await self._execute_phase(vuln_agents, "vulnerability_scanning")
 
+            # Phase 2.5: Attack path planning (prioritized, approval-gated)
+            planning_agents = [
+                a for a in self.agents.values() if "attack_path_planning" in a.get_capabilities()
+            ]
+            if planning_agents:
+                print("[Orchestrator] Starting attack path planning phase...")
+                self.shared_context["vulnerabilities"] = list(self.findings)
+                await self._execute_phase(planning_agents, "attack_path_planning")
+
             # Phase 3: Exploitation (requires approvals)
             exploit_agents = [
                 a for a in self.agents.values() if "exploitation" in a.get_capabilities()
@@ -201,6 +211,19 @@ class ScanOrchestrator:
             if post_exploit_agents:
                 print("[Orchestrator] Starting post-exploitation phase (awaiting approvals)...")
                 await self._execute_phase(post_exploit_agents, "post_exploitation")
+
+            # Phase 4.5: Quality assurance (deduplicate and validate findings)
+            qa_agents = [
+                a for a in self.agents.values() if "quality_assurance" in a.get_capabilities()
+            ]
+            if qa_agents and self.findings:
+                print("[Orchestrator] Running quality assurance on findings...")
+                self.shared_context["findings"] = list(self.findings)
+                await self._execute_phase(qa_agents, "quality_assurance")
+                deduplicated = self.shared_context.get("deduplicated_findings")
+                if isinstance(deduplicated, list):
+                    self.findings = list(deduplicated)
+                    self.shared_context["findings"] = list(self.findings)
 
             self.status = ScanStatus.COMPLETED
             self.completed_at = datetime.now(timezone.utc)

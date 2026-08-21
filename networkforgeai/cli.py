@@ -9,6 +9,7 @@ from pathlib import Path
 
 from . import __version__
 from .agents.recon_agent import ReconAgent
+from .agents.specialized import PlanningAgent, QualityAssuranceAgent
 from .agents.vuln_scanner_agent import VulnerabilityScannerAgent
 from .core.orchestrator import ScanConfig, ScanOrchestrator
 from .core.scope import ScopePolicy
@@ -114,6 +115,8 @@ def main(argv: list[str] | None = None) -> int:
         model_adapter = ModelFactory.create_from_env(override_provider=args.provider)
     orchestrator.register_agent(ReconAgent(model_adapter=model_adapter))
     orchestrator.register_agent(VulnerabilityScannerAgent(model_adapter=model_adapter))
+    orchestrator.register_agent(PlanningAgent())
+    orchestrator.register_agent(QualityAssuranceAgent())
     asyncio.run(_run(orchestrator, args.orchestrate))
     print(f"Scan {orchestrator.scan_id} completed: {orchestrator.save_dir}")
     return 0

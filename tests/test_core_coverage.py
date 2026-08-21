@@ -667,6 +667,29 @@ def test_orchestrator_phase_lifecycle_and_restore(tmp_path):
     run(scenario())
 
 
+def test_orchestrator_planning_and_qa_phases(tmp_path):
+    async def scenario():
+        orchestrator = ScanOrchestrator(
+            ScanConfig("example.com", ["example.com"], save_dir=str(tmp_path))
+        )
+        orchestrator.register_agent(PlanningAgent())
+        orchestrator.register_agent(QualityAssuranceAgent())
+        orchestrator.add_finding({"type": "sqli", "target": "example.com"})
+        orchestrator.add_finding({"type": "sqli", "target": "example.com"})
+        orchestrator.add_finding({"type": "xss", "target": "example.com"})
+
+        await orchestrator.execute_scan()
+
+        assert orchestrator.status is ScanStatus.COMPLETED
+        paths = orchestrator.shared_context["attack_paths"]
+        assert len(paths) == 3
+        assert all(path["requires_approval"] for path in paths)
+        assert len(orchestrator.findings) == 2
+        assert orchestrator.shared_context["findings"] == orchestrator.findings
+
+    run(scenario())
+
+
 def test_phase5_cli_tool_and_report_commands(tmp_path, capsys):
     report = tmp_path / "scan-1" / "report.md"
     report.parent.mkdir()

@@ -73,8 +73,8 @@
 | AGT-104 | Network Exploitation Agent | ✅ | Vulnerability validation, exploit chaining |
 | AGT-105 | Post-Exploitation Agent | ✅ | Lateral movement, privilege escalation |
 | AGT-106 | Reporting Agent | ✅ | Finding compilation, report generation |
-| AGT-107 | Planning Agent | 📋 | Attack path planning, prioritization |
-| AGT-108 | Quality Assurance Agent | 📋 | False positive reduction, validation |
+| AGT-107 | Planning Agent | ✅ | Attack path planning phase in `ScanOrchestrator` (approval-gated); registered in CLI scan |
+| AGT-108 | Quality Assurance Agent | ✅ | Finding dedup/validation QA phase in `ScanOrchestrator`; registered in CLI scan |
 
 ---
 
