@@ -95,6 +95,13 @@ who need tests and code-quality tools can install the larger developer extra:
 python -m pip install '.[runtime,dev]'
 ```
 
+Contributors working on the LLM adapter layer (or running `make typecheck`)
+also need the optional provider SDKs, which supply MyPy type stubs:
+
+```bash
+python -m pip install '.[runtime,dev,llm]'
+```
+
 On Windows PowerShell, activate with:
 
 ```powershell

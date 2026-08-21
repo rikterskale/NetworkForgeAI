@@ -334,29 +334,29 @@ installed in CI so optional provider adapters typecheck against real stubs.
 | ID | Document | Status | Audience |
 |----|----------|--------|----------|
 | DOC-001 | README quickstart | ✅ | All users |
-| DOC-002 | Installation guide | 📋 | New users |
-| DOC-003 | Configuration reference | 📋 | Operators |
-| DOC-004 | CLI command reference | 📋 | CLI users |
-| DOC-005 | GUI user manual | 📋 | GUI users |
-| DOC-006 | Agent playbook | 📋 | Advanced users |
-| DOC-007 | Troubleshooting guide | 📋 | All users |
-| DOC-008 | FAQ | 📋 | All users |
+| DOC-002 | Installation guide | ✅ | `docs/installation.md` (incl. contributor `[llm]` extra) |
+| DOC-003 | Configuration reference | ✅ | `docs/configuration.md` |
+| DOC-004 | CLI command reference | ✅ | `docs/cli-reference.md` (verified against current CLI flags) |
+| DOC-005 | GUI user manual | 📋 | Blocked until GUI ships |
+| DOC-006 | Agent playbook | ✅ | `docs/agents.md` |
+| DOC-007 | Troubleshooting guide | ✅ | `docs/troubleshooting.md` |
+| DOC-008 | FAQ | 📋 | Not started |
 
 ### Phase 9 Initial Deliverables
 
-- [ ] Publish installation and configuration guides.
-- [ ] Document CLI workflows and approval behavior.
-- [ ] Add architecture, API, security-model, and deployment references.
+- [x] Publish installation and configuration guides.
+- [x] Document CLI workflows and approval behavior.
+- [ ] Add architecture, API, security-model, and deployment references. (security model ✅; API reference outstanding)
 - [ ] Create example scan scenarios and operator training material.
 
 ### Technical Documentation
 | ID | Document | Status | Audience |
 |----|----------|--------|----------|
-| DOC-101 | Architecture overview | 📋 | Developers |
-| DOC-102 | API reference | 📋 | Integrators |
-| DOC-103 | Contributing guide | 📋 | Contributors |
-| DOC-104 | Security model whitepaper | 📋 | Security reviewers |
-| DOC-105 | Deployment guide | 📋 | DevOps engineers |
+| DOC-101 | Architecture overview | 🚧 | Component map in README plus `docs/agents.md`/`docs/approval-system.md`; no dedicated deep-dive yet |
+| DOC-102 | API reference | 📋 | Not started |
+| DOC-103 | Contributing guide | 📋 | Partially covered by `docs/installation.md` developer extras |
+| DOC-104 | Security model whitepaper | ✅ | `SECURITY.md`, `docs/ethics.md`, `docs/approval-system.md` |
+| DOC-105 | Deployment guide | 🚧 | Docker/compose files documented in `docs/installation.md`; production deployment not yet written |
 
 ### Training Materials
 | ID | Material | Status | Format |
@@ -442,6 +442,7 @@ Based on current progress (Phase 9 active), the following capabilities are highe
 
 | Date | Phase | Changes |
 |------|-------|---------|
+| Current Session | Phase 9 (cont.) | ✅ Documentation audit: historical PHASE*.md snapshots archived to `docs/history/`; DOC-002/003/004/006/007 verified against code and marked complete; installation guide updated with `[llm]` contributor extra |
 | Current Session | Phase 7 (cont.) | ✅ INT-004 Jira issue creation and INT-101 Slack finding summaries via shared HTTPS-only JSON transport (`integrations/notifications.py`) |
 | Current Session | Phase 3 (cont.) | ✅ VAL-002 exploit validation runner: approved PoC commands execute only inside the Docker sandbox, fail closed on missing approval/scope/sandbox |
 | Current Session | Phase 8 (cont.) | ✅ Full-repository strict MyPy: `make typecheck` now runs `mypy --strict networkforgeai` (44 modules); CI installs `.[llm]` extras for adapter stubs |
