@@ -16,6 +16,7 @@ from urllib.request import Request, urlopen
 from ..reporting.models import prepare_findings
 
 __all__ = [
+    "DiscordNotifier",
     "HttpsJsonClient",
     "JiraNotifier",
     "SlackNotifier",
@@ -106,6 +107,23 @@ class SlackNotifier:
                 }
             )
         return self.client.post({"text": header, "blocks": blocks})
+
+
+class DiscordNotifier:
+    """Post sanitized finding summaries to a Discord webhook (INT-103)."""
+
+    def __init__(self, webhook_url: str, timeout: float = 10.0):
+        self.client = HttpsJsonClient(webhook_url, headers={}, timeout=timeout)
+
+    def notify_findings(self, findings: list[dict[str, Any]], scan_id: str | None = None) -> int:
+        summary = summarize_findings(findings)
+        header = "NetworkForgeAI scan completed" + (f" (`{scan_id}`)" if scan_id else "")
+        lines = [f"**{header}**", f"Total findings: {summary['total']}"]
+        for severity, count in summary["by_severity"].items():
+            lines.append(f"- {severity}: {count}")
+        for item in summary["top_findings"]:
+            lines.append(f"> [`{item['severity']}`] {item['title']} — {item['target']}")
+        return self.client.post({"content": "\n".join(lines)})
 
 
 class TeamsNotifier:

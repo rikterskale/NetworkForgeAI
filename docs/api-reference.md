@@ -131,6 +131,25 @@ SIEM forwarding and cross-source correlation (INT-201/202).
 - `correlate_findings(source_groups) -> list[dict]` — merges normalized
   findings from multiple scanner sources into records keyed by
   `(target, CWE|type)`; highest severity wins, sources are tracked per record.
+- `DiscordNotifier(webhook_url).notify_findings(findings, scan_id=None)` —
+  Discord webhook messages (INT-103).
+- `AzureDevOpsWorkItemCreator(organization, project, pat)` — Azure DevOps
+  work items via JSON-Patch REST (INT-006).
+- `SecretResolver(refs)` / `SecretRef` — credential injection from `env:`,
+  `file:`, or `vault:` (HTTPS) references; inline secrets are rejected and
+  resolved values are never logged (INT-204).
+
+## Attack-path discovery
+
+### `networkforgeai.core.attack_paths`
+
+Advisory attack-graph construction (ADV-101):
+
+- `discover_attack_paths(findings, targets=None) -> dict` — builds a directed
+  stage-chained graph over findings (`recon -> credential -> privilege`, etc.),
+  links hosts via lateral-movement edges, and returns scored simple paths from
+  entry points. Paths are advisory; acting on them still requires the normal
+  scope and approval workflow.
 
 ### `networkforgeai.integrations.email_delivery`
 

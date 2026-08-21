@@ -15,6 +15,7 @@ from ..reporting.models import prepare_findings
 from .notifications import HttpsJsonClient
 
 __all__ = [
+    "AzureDevOpsWorkItemCreator",
     "BitbucketIssueCreator",
     "GitHubIssueCreator",
     "GitLabIssueCreator",
@@ -204,6 +205,68 @@ class LinearIssueCreator:
                 }
             },
         }
+        return self.client.post(payload)
+
+
+class AzureDevOpsWorkItemCreator:
+    """Create Azure DevOps work items for notable findings via REST (INT-006).
+
+    Uses a personal access token (PAT) via Basic auth and the JSON-Patch
+    work-item endpoint.
+    """
+
+    _WORK_ITEM_TYPES = {
+        "critical": "Bug",
+        "high": "Bug",
+        "medium": "Task",
+        "low": "Task",
+        "informational": "Task",
+    }
+    _ADO_PRIORITY = {"critical": "1", "high": "2", "medium": "3", "low": "4", "informational": "4"}
+
+    def __init__(
+        self,
+        organization: str,
+        project: str,
+        pat: str,
+        base_url: str = "https://dev.azure.com",
+        timeout: float = 10.0,
+    ):
+        if not pat or pat.strip() == "":
+            raise ValueError("A non-empty Azure DevOps PAT is required")
+        if not base_url.startswith("https://"):
+            raise ValueError("Azure DevOps base_url must use HTTPS")
+        endpoint = (
+            f"{base_url.rstrip('/')}/{organization}/{project}/_apis/wit/wi"
+            f"?api-version=7.1&$expand=none"
+        )
+        credentials = base64.b64encode(f":{pat}".encode()).decode()
+        self.client = HttpsJsonClient(
+            endpoint,
+            headers={
+                "Authorization": f"Basic {credentials}",
+                "Content-Type": "application/json-patch+json",
+            },
+            timeout=timeout,
+        )
+
+    def create_issue_for_finding(self, finding: dict[str, Any]) -> int:
+        fields = finding_to_issue_fields(finding)
+        severity = fields["severity"]
+        payload = [
+            {"op": "add", "path": "/fields/System.Title", "value": fields["title"]},
+            {"op": "add", "path": "/fields/System.Description", "value": fields["body"]},
+            {
+                "op": "add",
+                "path": "/fields/System.WorkItemType",
+                "value": self._WORK_ITEM_TYPES.get(severity, "Task"),
+            },
+            {
+                "op": "add",
+                "path": "/fields/Microsoft.VSTS.Common.Priority",
+                "value": self._ADO_PRIORITY.get(severity, "3"),
+            },
+        ]
         return self.client.post(payload)
 
 

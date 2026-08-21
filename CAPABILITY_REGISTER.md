@@ -267,14 +267,14 @@
 | INT-003 | Bitbucket | ✅ | Issues via REST (`BitbucketIssueCreator`); Pipelines can run the CI parity templates |
 | INT-004 | Jira | ✅ | Issue creation from findings via REST (`integrations/notifications.py`, HTTPS-only) |
 | INT-005 | Linear | ✅ | Issue creation via GraphQL (`LinearIssueCreator`) |
-| INT-006 | Azure DevOps | 🔍 | Boards, Pipelines |
+| INT-006 | Azure DevOps | ✅ | Work items via REST JSON-Patch (`AzureDevOpsWorkItemCreator`); Azure Pipelines parity template shipped |
 
 ### Communication & Collaboration
 | ID | Platform | Status | Integration Type |
 |----|----------|--------|------------------|
 | INT-101 | Slack | ✅ | Finding summaries to incoming webhooks (`integrations/notifications.py`, HTTPS-only) |
 | INT-102 | Microsoft Teams | ✅ | Message-card summaries to incoming webhooks (`integrations/notifications.py`, HTTPS-only) |
-| INT-103 | Discord | 🔍 | Notifications |
+| INT-103 | Discord | ✅ | Webhook notifications (`DiscordNotifier`) sharing the HTTPS-only transport |
 | INT-104 | Email (SMTP) | ✅ | Same transport as RPT-007; TLS enforced for remote hosts |
 
 ### CI/CD Platforms
@@ -284,7 +284,7 @@
 | CICD-002 | GitLab CI | ✅ | Parity template `templates/gitlab-ci-networkforgeai.yml` (lint/test/typecheck/security/docs/findings gate) |
 | CICD-003 | Jenkins | ✅ | Declarative pipeline parity template `templates/Jenkinsfile` |
 | CICD-004 | CircleCI | ✅ | Config parity template `templates/circleci-config.yml` (orb not required) |
-| CICD-005 | Azure Pipelines | 🔍 | Task development |
+| CICD-005 | Azure Pipelines | ✅ | Parity template `templates/azure-pipelines.yml` |
 
 ### Security Tools
 | ID | Tool Category | Status | Integration Purpose |
@@ -292,7 +292,7 @@
 | INT-201 | SIEM systems | ✅ | Splunk HEC forwarder with JSON and CEF event modes (`integrations/siem.SplunkHecForwarder`); HTTPS-only |
 | INT-202 | Vulnerability scanners | ✅ | Cross-source finding correlation by target + CWE/type (`integrations/siem.correlate_findings`) |
 | INT-203 | Ticketing systems | ✅ | Generic HTTPS JSON webhook ticket creation (`WebhookTicketClient`) |
-| INT-204 | Secret managers | 🔍 | Credential injection |
+| INT-204 | Secret managers | ✅ | `integrations/secrets.SecretResolver`: env/file/Vault-style HTTPS refs; inline secrets rejected, values never logged |
 
 ---
 
@@ -387,7 +387,7 @@ installed in CI so optional provider adapters typecheck against real stubs.
 ### Automation & Intelligence
 | ID | Feature | Status | Notes |
 |----|---------|--------|-------|
-| ADV-101 | Attack path auto-discovery | 🔍 | Graph algorithms |
+| ADV-101 | Attack path auto-discovery | ✅ | `core/attack_paths.discover_attack_paths`: stage-chained attack graph with scored simple paths (advisory only) |
 | ADV-102 | Vulnerability correlation | 🔍 | ML-based pattern matching |
 | ADV-103 | Threat intelligence integration | 🔍 | External feeds |
 | ADV-104 | Predictive risk scoring | 🔍 | Historical data analysis |
@@ -455,7 +455,6 @@ complete and tracked in their phase tables above.
 | Current Session | Phase 7 (cont.) | ✅ INT-102 Microsoft Teams message-card notifications via shared HTTPS-only transport |
 | Current Session | Phase 6/7 (cont.) | ✅ RPT-005 dependency-free executive-summary PDF (`to_pdf`, per-scan `executive-summary.pdf`); CICD-002 GitLab CI parity template (`templates/gitlab-ci-networkforgeai.yml`) |
 | Current Session | Phase 3 (cont.) | ✅ TLS-104 browser automation: `tools/browser_tool.py` — headless Playwright surface discovery behind the optional `[browser]` extra |
-| Current Session | Phase 4 (cont.) | 🔍 LLM-008 registered: migrate `models/google_adapter.py` from EOL `google-generativeai` to the new `google-genai` SDK |
 | Current Session | Phase 3 (cont.) | ✅ TLS-006 Metasploit integration: msfconsole resource scripts executed only in the Docker sandbox, CRITICAL risk with mandatory HITL approval and `check_only` mode |
 | Current Session | Phase 5 (cont.) | ✅ GUI-003 agent graph visualization: dependency-free SVG scan/agent topology in the operator console |
 | Current Session | Phase 5 (cont.) | ✅ GUI-009/GUI-010: dashboard RBAC — optional `DASHBOARD_VIEWER_TOKEN` grants read-only access to reports/scans/agents; approvals and steering remain operator-only |

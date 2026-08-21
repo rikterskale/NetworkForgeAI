@@ -1,0 +1,50 @@
+# Azure Pipelines for NetworkForgeAI quality gates.
+#
+# Mirrors the GitHub Actions pipeline (.github/workflows/ci.yml) and the other
+# parity templates: lint, tests with coverage, strict typecheck, security
+# scanning, documentation audit, and the findings policy gate.
+#
+# Usage: save as azure-pipelines.yml at the repository root and adjust
+# FINDINGS_INPUT as needed.
+
+trigger:
+  - main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  FINDINGS_INPUT: tests/fixtures/ci-findings-pass.json
+  PIP_CACHE_DIR: $(Pipeline.Workspace)/.pip
+
+stages:
+  - stage: quality_gates
+    jobs:
+      - job: gates
+        steps:
+          - task: Cache@2
+            inputs:
+              key: 'pip | "$(Agent.OS)"'
+              path: $(PIP_CACHE_DIR)
+            displayName: Restore pip cache
+
+          - script: python -m pip install --upgrade pip && python -m pip install -e ".[dev,runtime,llm]"
+            displayName: Install package
+
+          - script: ruff check networkforgeai tests tools && ruff format --check networkforgeai tests tools
+            displayName: Lint (ruff)
+
+          - script: pytest -q --cov=networkforgeai --cov-report=term-missing --cov-fail-under=90
+            displayName: Tests (pytest, >=90% coverage)
+
+          - script: mypy --strict networkforgeai
+            displayName: Typecheck (strict MyPy)
+
+          - script: bandit -q -r networkforgeai -ll && pip-audit
+            displayName: Security (bandit + pip-audit)
+
+          - script: python tools/ci_docs_audit.py
+            displayName: Documentation audit
+
+          - script: python tools/ci_findings_gate.py "$FINDINGS_INPUT" --json
+            displayName: Findings policy gate
