@@ -8,7 +8,9 @@ The production CI workflow runs:
 4. Bandit and dependency auditing.
 5. Markdown link/documentation audits.
 6. Docker Compose configuration validation.
-7. The user-readiness gate.
+7. A clean wheel-install smoke test using the installed `networkforgeai`
+   command.
+8. The strict user-readiness gate.
 
 The strict MyPy gate currently covers the maintained typed core surfaces. Legacy
 LLM adapters, agent implementations, and dashboard modules remain outside the
@@ -22,6 +24,16 @@ Run the same checks locally with:
 ```bash
 make ci
 ```
+
+The package-install job builds a wheel, installs it into a brand-new virtual
+environment outside the checkout, runs `pip check`, and exercises version, help,
+tool inventory, configuration validation, and a safe dry run through the
+installed console command. This catches missing package files, broken metadata,
+and entry-point failures that editable installs can hide.
+
+The readiness report also requires the installed `networkforgeai` entry point to
+exist. This prevents a green source-checkout build from hiding a broken command
+that a newly installed user would actually run.
 
 The readiness gate does not perform network scans or require LLM credentials. It
 verifies compilation, beginner-facing CLI safety controls, CLI help/version/tool

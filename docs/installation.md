@@ -24,7 +24,8 @@ You need:
 - Python 3.10 or newer
 - Git
 - A terminal
-- Docker Desktop or Docker Engine for sandboxed tool execution
+- Docker Desktop or Docker Engine for sandboxed tool execution (not needed for
+  installation, help, configuration validation, or dry runs)
 - An LLM provider key only if you want model-backed analysis
 
 Check Python and Git:
@@ -79,12 +80,19 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-After activation, your prompt normally starts with `(.venv)`. Upgrade the
-packaging tools and install the project with its runtime and development tools:
+After activation, your prompt normally starts with `(.venv)`. Upgrade pip and
+install the project for normal use:
 
 ```bash
-python -m pip install --upgrade pip setuptools wheel
-python -m pip install -e '.[runtime,dev]'
+python -m pip install --upgrade pip
+python -m pip install '.[runtime]'
+```
+
+The install creates the `networkforgeai` command inside `.venv`. Contributors
+who need tests and code-quality tools can install the larger developer extra:
+
+```bash
+python -m pip install '.[runtime,dev]'
 ```
 
 On Windows PowerShell, activate with:
@@ -96,7 +104,7 @@ On Windows PowerShell, activate with:
 If activation is unavailable, use the environment’s Python explicitly:
 
 ```bash
-.venv/bin/python -m pip install -e '.[runtime,dev]'
+.venv/bin/python -m pip install '.[runtime]'
 ```
 
 ## 4. Create a private configuration file
@@ -132,10 +140,10 @@ Copy the output into `.env` after `DASHBOARD_AUTH_TOKEN=`. See the
 Run these commands from the repository root:
 
 ```bash
-python -m networkforgeai.cli --version
-python -m networkforgeai.cli --help
-python -m networkforgeai.cli --list-tools
-python -m networkforgeai.cli --validate-config
+networkforgeai --version
+networkforgeai --help
+networkforgeai --list-tools
+networkforgeai --validate-config
 ```
 
 The tool list should show eight integrations. Configuration validation requires
@@ -162,7 +170,7 @@ A dry run builds the command but does not execute the external tool. Use a targe
 that is explicitly authorized in your scope:
 
 ```bash
-python -m networkforgeai.cli \
+networkforgeai \
   --target your-authorized-host.example \
   --scope your-authorized-host.example \
   --tool nmap \

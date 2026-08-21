@@ -101,15 +101,20 @@ cp .env.example .env
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -e '.[runtime,dev]'
+python -m pip install --upgrade pip
+python -m pip install '.[runtime]'
 ```
 
 The virtual environment provides the `python` command consistently, even on
 systems where only `python3` is available globally.
 
+Install `.[runtime,dev]` only when you plan to contribute code or run the full
+developer test suite. After installation, the `networkforgeai` command is
+available directly from the virtual environment.
+
 ### 3. Run a scope-bound dry run
 ```bash
-python3 -m networkforgeai.cli \
+networkforgeai \
   --target example.com \
   --scope example.com \
   --tool nmap \
@@ -123,7 +128,7 @@ require an approval gateway and cannot execute directly without one.
 ```bash
 export DASHBOARD_AUTH_TOKEN='replace-with-a-random-token'
 export REPORT_OUTPUT_DIR=./reports
-uvicorn networkforgeai.interface.dashboard:app --host 127.0.0.1 --port 8080
+python -m uvicorn networkforgeai.interface.dashboard:app --host 127.0.0.1 --port 8080
 ```
 The dashboard currently exposes authenticated read-only health and report-listing endpoints.
 

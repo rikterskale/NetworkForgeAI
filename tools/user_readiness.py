@@ -67,6 +67,17 @@ def main() -> int:
     args = parser.parse_args()
     checks: list[dict[str, object]] = []
     python = sys.executable
+    cli_candidates = [shutil.which("networkforgeai"), str(Path(python).with_name("networkforgeai"))]
+    installed_cli = next(
+        (candidate for candidate in cli_candidates if candidate and Path(candidate).is_file()), None
+    )
+    checks.append(
+        {
+            "name": "installed CLI entry point",
+            "passed": installed_cli is not None,
+            "path": installed_cli or "",
+        }
+    )
 
     compile_script = textwrap.dedent(
         """
