@@ -28,7 +28,7 @@ markdown>=3.5.0
 pandas>=2.3.3
 
 # Security and validation
-jsonschema>=4.21.0
+jsonschema>=4.26.0
 cvss>=3.1
 
 # Utilities
