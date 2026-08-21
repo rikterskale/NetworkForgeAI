@@ -25,7 +25,7 @@ python-multipart>=0.0.6
 # Reporting
 jinja2>=3.1.6
 markdown>=3.5.0
-pandas>=2.2.0
+pandas>=2.3.3
 
 # Security and validation
 jsonschema>=4.21.0
