@@ -1,19 +1,20 @@
 """
-Google Model Adapter - Integration with Google Generative AI (Gemini).
+Google Model Adapter - Integration with the Google GenAI SDK (Gemini).
 
 Supports:
 - Gemini Pro, Gemini Ultra
-- Gemini 1.5 family
+- Gemini 1.5 / 2.x family
 - Function calling
 - Streaming responses
 - Vision capabilities
 """
 
 import asyncio
-from typing import Any, AsyncIterator, Dict, List, Optional, cast
+from typing import Any, AsyncIterator, List, Optional, cast
 
 try:
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types as genai_types
 
     GOOGLE_AVAILABLE = True
 except ImportError:
@@ -39,8 +40,7 @@ class GoogleAdapter(BaseAdapter):
 
     def __init__(self, config: ModelConfig):
         super().__init__(config)
-        self.client = None
-        self.model: Any | None = None
+        self.client: Any | None = None
 
         # Set capabilities based on model
         if "gemini" in config.model_name.lower():
@@ -53,27 +53,24 @@ class GoogleAdapter(BaseAdapter):
             ]
 
     async def connect(self) -> bool:
-        """Establish connection to Google Generative AI."""
+        """Establish connection to the Google GenAI service."""
         if not GOOGLE_AVAILABLE:
-            raise ImportError(
-                "Google Generative AI package not installed. Run: pip install google-generativeai"
-            )
+            raise ImportError("Google GenAI package not installed. Run: pip install google-genai")
 
         try:
             if not self.config.api_key:
                 raise ValueError("Google API key required")
 
-            self.model = cast(Any, genai).GenerativeModel(self.config.model_name)
-            cast(Any, genai).configure(api_key=self.config.api_key)
+            self.client = genai.Client(api_key=self.config.api_key)
             self._is_connected = True
             return True
         except Exception as e:
             self._is_connected = False
-            raise ConnectionError(f"Failed to connect to Google Generative AI: {e}")
+            raise ConnectionError(f"Failed to connect to Google GenAI: {e}")
 
     async def disconnect(self) -> None:
         """Cleanup resources."""
-        self.model = None
+        self.client = None
         self._is_connected = False
 
     def supports_capability(self, capability: ModelCapability) -> bool:
@@ -89,56 +86,51 @@ class GoogleAdapter(BaseAdapter):
         **kwargs: Any,
     ) -> ModelResponse:
         """Send a chat request to Gemini."""
-        if not self.model:
+        if not self.client:
             await self.connect()
-        if self.model is None:
+        if self.client is None:
             raise ConnectionError("Google model unavailable")
-
-        # Build conversation history
-        chat = self.model.start_chat(history=[])
 
         # Convert and send messages
         temperature = temperature or self.config.temperature
         max_tokens = max_tokens or self.config.max_tokens
 
-        # Configure generation settings
-        generation_config = genai.types.GenerationConfig(
-            max_output_tokens=max_tokens,
-            temperature=temperature,
-            top_p=self.config.top_p,
+        generation_config: dict[str, Any] = {
+            "max_output_tokens": max_tokens,
+            "temperature": temperature,
+            "top_p": self.config.top_p,
+        }
+
+        gemini_tools = self._convert_tools(tools) if tools else None
+        if gemini_tools is not None:
+            generation_config["tools"] = gemini_tools
+
+        prompt = self._build_prompt(messages)
+        response = await asyncio.to_thread(
+            self.client.models.generate_content,
+            model=self.config.model_name,
+            contents=prompt,
+            config=genai_types.GenerateContentConfig(**generation_config),
         )
 
-        # Add tools if provided
-        if tools:
-            gemini_tools = self._convert_tools(tools)
-            response = await asyncio.to_thread(
-                chat.send_message,
-                self._build_prompt(messages),
-                generation_config=generation_config,
-                tools=gemini_tools,
-            )
-        else:
-            response = await asyncio.to_thread(
-                chat.send_message, self._build_prompt(messages), generation_config=generation_config
-            )
-
         # Extract content
-        content_text = response.text
+        content_text = response.text or ""
 
         # Check for function calls
         tool_calls: list[dict[str, Any]] = []
-        if hasattr(response, "candidates") and response.candidates:
+        if response.candidates:
             candidate = response.candidates[0]
-            if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
+            if candidate.content and candidate.content.parts:
                 for part in candidate.content.parts:
-                    if hasattr(part, "function_call") and part.function_call:
+                    function_call = getattr(part, "function_call", None)
+                    if function_call:
                         tool_calls.append(
                             {
                                 "id": f"call_{len(tool_calls)}",
                                 "type": "function",
                                 "function": {
-                                    "name": part.function_call.name,
-                                    "arguments": dict(part.function_call.args),
+                                    "name": function_call.name,
+                                    "arguments": dict(function_call.args or {}),
                                 },
                             }
                         )
@@ -175,31 +167,36 @@ class GoogleAdapter(BaseAdapter):
         **kwargs: Any,
     ) -> AsyncIterator[str]:
         """Stream a chat response from Gemini."""
-        if not self.model:
+        if not self.client:
             await self.connect()
-        if self.model is None:
+        if self.client is None:
             raise ConnectionError("Google model unavailable")
-
-        chat = self.model.start_chat(history=[])
 
         temperature = temperature or self.config.temperature
         max_tokens = max_tokens or self.config.max_tokens
 
-        generation_config = genai.types.GenerationConfig(
-            max_output_tokens=max_tokens,
-            temperature=temperature,
-            top_p=self.config.top_p,
-        )
+        generation_config: dict[str, Any] = {
+            "max_output_tokens": max_tokens,
+            "temperature": temperature,
+            "top_p": self.config.top_p,
+        }
+
+        gemini_tools = self._convert_tools(tools) if tools else None
+        if gemini_tools is not None:
+            generation_config["tools"] = gemini_tools
 
         prompt = self._build_prompt(messages)
 
         try:
             response = await asyncio.to_thread(
-                chat.send_message, prompt, generation_config=generation_config, stream=True
+                self.client.models.generate_content_stream,
+                model=self.config.model_name,
+                contents=prompt,
+                config=genai_types.GenerateContentConfig(**generation_config),
             )
 
             for chunk in response:
-                if hasattr(chunk, "text") and chunk.text:
+                if chunk.text:
                     yield chunk.text
 
         except Exception as e:
@@ -221,16 +218,20 @@ class GoogleAdapter(BaseAdapter):
 
         return "\n".join(parts)
 
-    def _convert_tools(self, tools: List[ToolDefinition]) -> List[Dict[str, Any]]:
-        """Convert tools to Gemini format."""
-        gemini_tools = []
-
+    def _convert_tools(self, tools: List[ToolDefinition]) -> List[Any]:
+        """Convert tools to Google GenAI format."""
+        declarations = []
         for tool in tools:
-            gemini_tools.append(
-                {"name": tool.name, "description": tool.description, "parameters": tool.parameters}
+            parameters = tool.parameters or {"type": "object", "properties": {}}
+            declarations.append(
+                genai_types.FunctionDeclaration(
+                    name=tool.name,
+                    description=tool.description,
+                    # The SDK coerces JSON-schema dicts into its Schema model.
+                    parameters=cast(Any, parameters),
+                )
             )
-
-        return gemini_tools
+        return [genai_types.Tool(function_declarations=declarations)]
 
     def estimate_tokens(self, text: str) -> int:
         """

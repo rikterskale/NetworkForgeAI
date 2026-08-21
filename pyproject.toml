@@ -14,7 +14,7 @@ dependencies = [
 
 [project.optional-dependencies]
 runtime = ["fastapi>=0.109", "uvicorn>=0.27"]
-llm = ["openai>=1.12", "anthropic>=0.18", "google-generativeai>=0.4", "litellm>=1.40"]
+llm = ["openai>=1.12", "anthropic>=0.18", "google-genai>=1.0", "litellm>=1.40"]
 browser = ["playwright>=1.40"]
 dev = [
   "pytest>=8",

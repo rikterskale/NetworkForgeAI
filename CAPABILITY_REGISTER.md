@@ -171,7 +171,7 @@
 | LLM-005 | Local LLM support | ✅ | Ollama, LM Studio, vLLM |
 | LLM-006 | Azure OpenAI | ✅ | Enterprise deployment ready |
 | LLM-007 | Model fallback logic | ✅ | Automatic retry on failure |
-| LLM-008 | Google SDK migration (google-genai) | 🔍 | `google-generativeai` is EOL (FutureWarning at import); rewrite `models/google_adapter.py` against the new `google-genai` SDK and update the `[llm]` extra + CI stubs |
+| LLM-008 | Google SDK migration (google-genai) | ✅ | `models/google_adapter.py` migrated from EOL `google-generativeai` to the `google-genai` SDK; `[llm]` extra and `requirements.txt` updated |
 
 ### AI Capabilities
 | ID | Capability | Status | Notes |
