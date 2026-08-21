@@ -110,21 +110,21 @@ jobs:
       - run: python -m pip install --upgrade pip build
       - run: python -m build --wheel --outdir dist
       - run: python -m venv "$NF_VENV"
-      - run: "$NF_VENV/bin/python" -m pip install --upgrade pip
-      - run: "$NF_VENV/bin/python" -m pip install dist/*.whl
-      - run: "$NF_VENV/bin/python" -m pip check
-      - run: "$NF_VENV/bin/networkforgeai" --version
+      - run: '"$NF_VENV/bin/python" -m pip install --upgrade pip'
+      - run: '"$NF_VENV/bin/python" -m pip install dist/*.whl'
+      - run: '"$NF_VENV/bin/python" -m pip check'
+      - run: '"$NF_VENV/bin/networkforgeai" --version'
         working-directory: ${{ runner.temp }}
-      - run: "$NF_VENV/bin/networkforgeai" --help
+      - run: '"$NF_VENV/bin/networkforgeai" --help'
         working-directory: ${{ runner.temp }}
-      - run: "$NF_VENV/bin/networkforgeai" --list-tools
+      - run: '"$NF_VENV/bin/networkforgeai" --list-tools'
         working-directory: ${{ runner.temp }}
-      - run: "$NF_VENV/bin/networkforgeai" --validate-config
+      - run: '"$NF_VENV/bin/networkforgeai" --validate-config'
         working-directory: ${{ runner.temp }}
         env:
           TARGET_SCOPE: example.com
           DASHBOARD_AUTH_TOKEN: package-smoke-token
-      - run: "$NF_VENV/bin/networkforgeai" --target example.com --scope example.com --tool nmap --dry-run
+      - run: '"$NF_VENV/bin/networkforgeai" --target example.com --scope example.com --tool nmap --dry-run'
         working-directory: ${{ runner.temp }}
       - uses: actions/upload-artifact@v7
         with:
