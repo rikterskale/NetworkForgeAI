@@ -4,6 +4,13 @@ from typing import Any, cast
 
 from .base_tool import BaseTool, ToolCategory, ToolResult, ToolRiskLevel
 from .browser_tool import BrowserAutomationTool
+from .cloud_tools import (
+    AdReconTool,
+    AwsAuditTool,
+    AzureAuditTool,
+    GcpAuditTool,
+    KubernetesHuntTool,
+)
 from .graphql_tool import GraphQLProbeTool
 from .jwt_tool import JwtAnalyzerTool
 from .metasploit_tool import MetasploitTool
@@ -32,6 +39,11 @@ __all__ = [
     "BrowserAutomationTool",
     "JwtAnalyzerTool",
     "GraphQLProbeTool",
+    "AwsAuditTool",
+    "AzureAuditTool",
+    "GcpAuditTool",
+    "KubernetesHuntTool",
+    "AdReconTool",
 ]
 
 
@@ -50,6 +62,11 @@ def get_available_tools() -> dict[str, type[BaseTool]]:
         "browser": BrowserAutomationTool,
         "jwt-analyzer": JwtAnalyzerTool,
         "graphql-probe": GraphQLProbeTool,
+        "cloud-aws": AwsAuditTool,
+        "cloud-azure": AzureAuditTool,
+        "cloud-gcp": GcpAuditTool,
+        "kube-hunter": KubernetesHuntTool,
+        "ad-recon": AdReconTool,
     }
 
 

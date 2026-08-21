@@ -152,7 +152,7 @@ def test_agent_message_and_approval_branches():
 
 
 def test_registry_exports_and_recon_empty_paths():
-    assert len(get_available_tools()) == 12
+    assert len(get_available_tools()) == 17
     assert get_tool_by_name("graphql-probe").name == "graphql-probe"
     assert get_tool_by_name("nmap").name == "nmap"
     with pytest.raises(ValueError):

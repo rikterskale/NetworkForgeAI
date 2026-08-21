@@ -108,11 +108,11 @@
 ### Cloud & Infrastructure
 | ID | Tool/Capability | Status | Target Platforms |
 |----|-----------------|--------|------------------|
-| TLS-201 | AWS testing tools | 📋 | Pacu, ScoutSuite |
-| TLS-202 | Azure testing tools | 📋 | Stormspotter, ROADtools |
-| TLS-203 | GCP testing tools | 📋 | GCPBucketBrute, ScoutSuite |
-| TLS-204 | Kubernetes testing | 📋 | Kube-hunter, CDK |
-| TLS-205 | Active Directory tools | 📋 | BloodHound, Kerbrute |
+| TLS-201 | AWS testing tools | ✅ | `cloud-aws` tool (ScoutSuite wrapper), approval-gated |
+| TLS-202 | Azure testing tools | ✅ | `cloud-azure` tool (ROADtools/roadrecon wrapper), approval-gated |
+| TLS-203 | GCP testing tools | ✅ | `cloud-gcp` tool (ScoutSuite wrapper), approval-gated |
+| TLS-204 | Kubernetes testing | ✅ | `kube-hunter` tool (HIGH risk, approval required) |
+| TLS-205 | Active Directory tools | ✅ | `ad-recon` tool (bloodhound-python collector, HIGH risk) |
 
 ### Validation & Exploitation
 | ID | Capability | Status | Notes |
@@ -217,10 +217,10 @@
 ### Terminal UI (TUI)
 | ID | Feature | Status | Notes |
 |----|---------|--------|-------|
-| TUI-001 | Rich terminal display | 📋 | Progress bars, tables |
-| TUI-002 | Live log streaming | 📋 | Color-coded output |
-| TUI-003 | Interactive menus | 📋 | Keyboard navigation |
-| TUI-004 | Approval dialogs | 📋 | Inline confirmation |
+| TUI-001 | Rich terminal display | ✅ | `interface/tui.TUIDisplay` — dependency-free ANSI progress bars and tables |
+| TUI-002 | Live log streaming | ✅ | `interface/tui.LogStreamPanel` — level-tagged, color-coded lines |
+| TUI-003 | Interactive menus | ✅ | `interface/tui.InteractiveMenu` — number-key navigation, fail-closed non-interactive |
+| TUI-004 | Approval dialogs | ✅ | `interface/tui.ApprovalDialog` — boxed HITL dialog, fails closed |
 
 ---
 
@@ -437,10 +437,8 @@ Based on current progress (Phase 9 documentation complete; Phases 5–7 partiall
 delivered), the following capabilities are highest priority:
 
 1. **LLM-008**: Migrate the Google adapter from the EOL `google-generativeai` SDK to `google-genai` (Phase 4)
-2. **TUI-001..004**: Rich terminal UI (progress, live logs, approval dialogs) (Phase 5)
 3. **GUI-005+**: Dashboard findings drill-down / trend views beyond read-only summaries (Phase 5)
 4. **RPT-007 / INT-104**: Email delivery of reports and alerts over SMTP with TLS (Phases 6–7)
-5. **TLS-201..205**: Cloud & AD testing tool integrations (Pacu, ScoutSuite, BloodHound) (Phase 3)
 
 Previously listed items (LLM adapters, CLI, dashboard MVP, validation engine,
 dashboard RBAC, agent graph, Metasploit, PDF reports, browser automation,
