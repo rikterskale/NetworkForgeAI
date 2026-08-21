@@ -139,9 +139,25 @@ def _read_report(output_dir: str, report_path: str) -> str:
 
 
 async def _run(orchestrator: ScanOrchestrator, execute: bool) -> None:
+    from .interface.cli_ui import ApprovalPrompt, StatusDisplay
+
+    prompt = ApprovalPrompt(orchestrator.approval_gateway)
+    orchestrator.approval_gateway.register_callback("cli_prompt", prompt)
+    display = StatusDisplay()
     await orchestrator.start()
-    if execute:
-        await orchestrator.execute_scan()
+    if not execute:
+        return
+    scan_task = asyncio.create_task(orchestrator.execute_scan())
+    try:
+        while not scan_task.done():
+            for agent_id, agent in orchestrator.agents.items():
+                display.update(agent_id, agent.status.value)
+            await asyncio.sleep(0.25)
+        await scan_task
+    finally:
+        for agent_id, agent in orchestrator.agents.items():
+            display.update(agent_id, agent.status.value)
+        print(display.render())
 
 
 if __name__ == "__main__":
