@@ -1,7 +1,7 @@
 # NetworkForgeAI Capability Register & Roadmap
 
-**Last Updated:** Phase 2 Complete  
-**Status:** Core architecture prototype hardened; end-to-end platform remains in progress
+**Last Updated:** Phase 8 Started
+**Status:** Core platform foundations and CI quality gates verified; end-to-end platform remains in progress
 **Safety Model:** Human-in-the-Loop (HITL) Required for All Actions
 
 ---
@@ -291,26 +291,26 @@
 
 ---
 
-## 🧪 Phase 8: Testing & Quality Assurance (📋 PLANNED)
+## 🧪 Phase 8: Testing & Quality Assurance (🚧 IN PROGRESS)
 
 ### Test Coverage
 | ID | Area | Status | Notes |
 |----|------|--------|-------|
-| TST-001 | Unit tests | 📋 | Pytest framework |
-| TST-002 | Integration tests | 📋 | End-to-end workflows |
-| TST-003 | Agent behavior tests | 📋 | Mock LLM responses |
-| TST-004 | Safety mechanism tests | 📋 | Approval bypass prevention |
+| TST-001 | Unit tests | ✅ | Pytest framework and regression coverage |
+| TST-002 | Integration tests | ✅ | Reporting, webhook, and workflow tests |
+| TST-003 | Agent behavior tests | ✅ | Mock approvals and model-independent paths |
+| TST-004 | Safety mechanism tests | ✅ | Approval bypass prevention and fail-closed checks |
 | TST-005 | Performance tests | 🔍 | Load testing agents |
 | TST-006 | Security tests | 🔍 | Pen-test the pentester |
 
 ### Quality Gates
 | ID | Gate | Status | Criteria |
 |----|------|--------|----------|
-| QA-001 | Code linting | 📋 | Ruff, Black |
+| QA-001 | Code linting | ✅ | Ruff checks and format verification in CI |
 | QA-002 | Type checking | 📋 | MyPy strict mode |
-| QA-003 | Documentation coverage | 📋 | Docstrings required |
+| QA-003 | Documentation coverage | ✅ | Documentation audit in CI |
 | QA-004 | Test coverage threshold | ✅ | >90% line coverage |
-| QA-005 | Security scan | 📋 | Bandit, Semgrep |
+| QA-005 | Security scan | ✅ | Bandit and pip-audit in CI; Semgrep remains future work |
 
 ---
 
