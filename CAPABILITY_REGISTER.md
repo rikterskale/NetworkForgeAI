@@ -118,7 +118,7 @@
 | ID | Capability | Status | Notes |
 |----|-----------|--------|-------|
 | VAL-001 | PoC exploit generator | ✅ | Advisory templates via `core/validation.generate_poc` (never executed; HITL required) |
-| VAL-002 | Exploit validation runner | 📋 | Safe execution sandbox (Phase 4 dependency) |
+| VAL-002 | Exploit validation runner | ✅ | Sandbox-only execution behind approval gateway (`core/validation_runner.py`); fail-closed without approval/scope/sandbox |
 | VAL-003 | False positive eliminator | ✅ | Multi-signal heuristics in `core/validation.eliminate_false_positives` |
 | VAL-004 | CVSS calculator | ✅ | CVSS v3.1 base scores in `core/validation.cvss_base_score` |
 | VAL-005 | Impact assessment engine | ✅ | Business-context severity adjustment in `core/validation.assess_impact` |
@@ -442,6 +442,7 @@ Based on current progress (Phase 9 active), the following capabilities are highe
 
 | Date | Phase | Changes |
 |------|-------|---------|
+| Current Session | Phase 3 (cont.) | ✅ VAL-002 exploit validation runner: approved PoC commands execute only inside the Docker sandbox, fail closed on missing approval/scope/sandbox |
 | Current Session | Phase 8 (cont.) | ✅ Full-repository strict MyPy: `make typecheck` now runs `mypy --strict networkforgeai` (44 modules); CI installs `.[llm]` extras for adapter stubs |
 | Current Session | Phase 9 (cont.) | ✅ Validation engine (VAL-001/003/004/005), compliance mappings (CMP-001..003), HTML reports (RPT-006), CLI approval prompts + status display (CLI-003/004); strict MyPy gate extended to dashboard, CLI UI, validation, and compliance modules |
 | Current Session | Phase 9 | ✅ Phase 8 core quality gates closed; strict MyPy gate added for maintained typed surfaces; Phase 9 documentation work started |
