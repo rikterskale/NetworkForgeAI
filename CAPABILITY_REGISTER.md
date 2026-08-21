@@ -309,7 +309,7 @@
 | QA-001 | Code linting | 📋 | Ruff, Black |
 | QA-002 | Type checking | 📋 | MyPy strict mode |
 | QA-003 | Documentation coverage | 📋 | Docstrings required |
-| QA-004 | Test coverage threshold | 📋 | >80% line coverage |
+| QA-004 | Test coverage threshold | ✅ | >90% line coverage |
 | QA-005 | Security scan | 📋 | Bandit, Semgrep |
 
 ---

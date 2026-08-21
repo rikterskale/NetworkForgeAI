@@ -4,6 +4,17 @@ from datetime import datetime, timedelta
 
 import pytest
 
+from networkforgeai.agents.recon_agent import ReconAgent
+from networkforgeai.agents.specialized import (
+    APISecurityAgent,
+    NetworkExploitationAgent,
+    PlanningAgent,
+    PostExploitationAgent,
+    QualityAssuranceAgent,
+    ReportingAgent,
+    WebApplicationAgent,
+)
+from networkforgeai.agents.vuln_scanner_agent import VulnerabilityScannerAgent
 from networkforgeai.cli import _list_reports, _read_report
 from networkforgeai.cli import main as cli_main
 from networkforgeai.config import ApprovalMode, ReportFormat, Settings
@@ -16,6 +27,7 @@ from networkforgeai.core.approval_gateway import (
 from networkforgeai.core.base_agent import AgentStatus, BaseAgent
 from networkforgeai.core.knowledge_base import KnowledgeBase
 from networkforgeai.core.message_bus import MessageBus
+from networkforgeai.core.orchestrator import ScanConfig, ScanOrchestrator, ScanStatus
 from networkforgeai.models.ai_capabilities import (
     cot_attack_path_planning,
     cot_vulnerability_analysis,
@@ -23,6 +35,16 @@ from networkforgeai.models.ai_capabilities import (
     parse_json_response,
     summarize_conversation,
     truncate_context,
+)
+from networkforgeai.models.base_adapter import (
+    BaseAdapter,
+    Message,
+    ModelCapability,
+    ModelConfig,
+    ModelProvider,
+    ModelResponse,
+    TokenUsage,
+    ToolDefinition,
 )
 from networkforgeai.models.model_factory import ModelFactory
 from networkforgeai.models.retry import retry_async
@@ -47,6 +69,31 @@ class DemoAgent(BaseAgent):
 
     def get_capabilities(self):
         return ["demo"]
+
+
+class DummyAdapter(BaseAdapter):
+    async def connect(self):
+        self._is_connected = True
+        return True
+
+    async def disconnect(self):
+        self._is_connected = False
+
+    async def chat(self, messages, tools=None, temperature=None, max_tokens=None, **kwargs):
+        response = ModelResponse(
+            content=messages[-1].content,
+            model=self.model_name,
+            usage={"prompt_tokens": 2, "completion_tokens": 3, "total_tokens": 5},
+            finish_reason="stop",
+        )
+        self.token_usage.add(response)
+        return response
+
+    async def chat_stream(self, messages, tools=None, temperature=None, max_tokens=None, **kwargs):
+        yield messages[-1].content
+
+    def supports_capability(self, capability):
+        return capability in self.config.capabilities
 
 
 def run(coro):
@@ -196,6 +243,78 @@ def test_base_agent_approval_and_model_errors():
     run(scenario())
 
 
+def test_recon_and_vulnerability_agents_with_mocked_approvals():
+    async def scenario():
+        recon = ReconAgent()
+        result = await recon.execute("enumerate_subdomains", {"target": "example.com"})
+        assert len(result["findings"]) == 3
+        tech = await recon.execute("detect_technologies", {"target": "example.com"})
+        assert len(tech["findings"]) == 3
+
+        async def approve(*args, **kwargs):
+            return True, {"operator": "test"}
+
+        recon.request_approval = approve
+        ports = await recon.execute("scan_ports", {"target": "example.com"})
+        assert len(ports["findings"]) == 3
+        fingerprint = await recon.execute(
+            "fingerprint_services",
+            {
+                "target": "example.com",
+                "discovered_ports": ports["context_updates"]["discovered_ports"],
+            },
+        )
+        assert len(fingerprint["findings"]) == 3
+        assert (await recon.execute("other", {}))["findings"] == []
+
+        scanner = VulnerabilityScannerAgent()
+        scanner.request_approval = approve
+        sql = await scanner.execute("scan_sql_injection", {"target": "example.com"})
+        assert sql["findings"][0]["type"] == "sql_injection"
+        xss = await scanner.execute("scan_xss", {"discovered_urls": ["https://example.com/login"]})
+        assert xss["findings"][0]["type"] == "xss"
+        ssrf = await scanner.execute("scan_ssrf", {"target": "example.com"})
+        assert ssrf["findings"][0]["type"] == "ssrf"
+        auth = await scanner.execute("scan_auth_bypass", {"target": "example.com"})
+        assert auth["findings"] == []
+
+        async def reject(*args, **kwargs):
+            return False, None
+
+        scanner.request_approval = reject
+        rejected = await scanner.execute("unknown", {"target": "example.com"})
+        assert rejected["findings"] == []
+
+    run(scenario())
+
+
+def test_specialized_agents_return_safe_workflows():
+    async def scenario():
+        context = {
+            "vulnerabilities": [{"title": "SQL injection"}, {"type": "xss"}],
+            "findings": [{"type": "x", "target": "a"}, {"type": "x", "target": "a"}],
+            "discovered_urls": ["https://example.com"],
+        }
+        planning = await PlanningAgent().execute("plan", context)
+        assert len(planning["context_updates"]["attack_paths"]) == 2
+        reporting = await ReportingAgent().execute("report", context)
+        assert len(reporting["findings"]) == 2
+        qa = await QualityAssuranceAgent().execute("qa", context)
+        assert len(qa["findings"]) == 1
+        web = await WebApplicationAgent().execute("web", context)
+        assert web["context_updates"]["active_testing_requires_approval"]
+        api = await APISecurityAgent().execute("api", context)
+        assert api["context_updates"]["api_testing_plan"]["requires_approval"]
+        assert (await NetworkExploitationAgent().execute("exploit", context))["context_updates"][
+            "exploitation_blocked"
+        ]
+        assert (await PostExploitationAgent().execute("post", context))["context_updates"][
+            "post_exploitation_blocked"
+        ]
+
+    run(scenario())
+
+
 def test_model_factory_routing_and_capabilities():
     assert ModelFactory._parse_provider("ollama").value == "local"
     assert ModelFactory._parse_provider("azure").value == "azure_openai"
@@ -240,6 +359,75 @@ def test_model_factory_environment_detection(monkeypatch):
     monkeypatch.delenv("LOCAL_LLM_URL")
     with pytest.raises(ValueError, match="No LLM"):
         ModelFactory.create_from_env()
+
+
+def test_model_factory_construction_and_fallbacks(monkeypatch):
+    local = ModelFactory.create("local", "demo", api_base="http://localhost:11434/v1")
+    assert local.provider_name == "local"
+    azure = ModelFactory.create(
+        "azure_openai",
+        "deployment",
+        api_key="secret",
+        azure_endpoint="https://azure.example",
+        azure_deployment="deployment",
+        api_version="2024-01-01",
+    )
+    assert azure.provider_name == "azure_openai"
+    with pytest.raises(ValueError, match="Azure OpenAI"):
+        ModelFactory.create("azure", "deployment")
+
+    attempts = []
+
+    def fake_create(cls, provider, model_name, **kwargs):
+        attempts.append(provider)
+        return DummyAdapter(ModelConfig(ModelProvider.LOCAL, model_name))
+
+    monkeypatch.setattr(ModelFactory, "create", classmethod(fake_create))
+    assert run(ModelFactory.create_with_fallback_async(["first", "second"])).model_name == "gpt-4"
+    assert attempts == ["first"]
+
+    class FailingAdapter(DummyAdapter):
+        async def connect(self):
+            return False
+
+    monkeypatch.setattr(
+        ModelFactory,
+        "create",
+        classmethod(
+            lambda cls, provider, model_name, **kwargs: FailingAdapter(
+                ModelConfig(ModelProvider.LOCAL, model_name)
+            )
+        ),
+    )
+    with pytest.raises(ValueError, match="All providers failed"):
+        run(ModelFactory.create_with_fallback_async(["first", "second"]))
+
+    monkeypatch.setattr(
+        ModelFactory,
+        "create",
+        classmethod(
+            lambda cls, provider, model_name, **kwargs: DummyAdapter(
+                ModelConfig(ModelProvider.LOCAL, model_name)
+            )
+        ),
+    )
+    assert ModelFactory.create_with_fallback(["first"], {"first": "local"}).model_name == "local"
+
+    class ErrorAdapter(DummyAdapter):
+        async def connect(self):
+            raise RuntimeError("offline")
+
+    monkeypatch.setattr(
+        ModelFactory,
+        "create",
+        classmethod(
+            lambda cls, provider, model_name, **kwargs: ErrorAdapter(
+                ModelConfig(ModelProvider.LOCAL, model_name)
+            )
+        ),
+    )
+    with pytest.raises(ValueError, match="All providers failed"):
+        ModelFactory.create_with_fallback(["first"])
 
 
 def test_password_tools_build_and_parse_commands():
@@ -302,6 +490,63 @@ def test_tool_result_and_retry_terminal_failure():
 
     with pytest.raises(RuntimeError, match="no"):
         run(retry_async(fail, attempts=0, base_delay=0))
+
+
+def test_base_adapter_history_context_tokens_and_health():
+    async def scenario():
+        config = ModelConfig(
+            ModelProvider.LOCAL,
+            "demo",
+            max_tokens=4,
+            capabilities=[ModelCapability.CHAT, ModelCapability.STREAMING],
+        )
+        adapter = DummyAdapter(config)
+        assert adapter.provider_name == "local"
+        assert adapter.model_name == "demo"
+        assert not adapter.is_connected
+        assert await adapter.connect()
+        adapter.add_message("user", "hello", name="operator")
+        adapter.set_system_prompt("safety")
+        assert adapter.get_history()[0].role == "system"
+        assert adapter.get_history()[1].name == "operator"
+        response = await adapter.chat([Message("user", "hello")])
+        assert response.total_tokens == 5
+        assert adapter.get_usage_summary()["session_tokens"] == 5
+        assert await adapter.health_check()
+        assert adapter.supports_capability(ModelCapability.STREAMING)
+        assert not adapter.supports_capability(ModelCapability.VISION)
+        chunks = [chunk async for chunk in adapter.chat_stream([Message("user", "chunk")])]
+        assert chunks == ["chunk"]
+        context = adapter.prepare_context(
+            [Message("system", "rules"), Message("user", "a" * 40), Message("user", "recent")],
+            max_tokens=2,
+        )
+        assert context[0].role == "system"
+        assert context[-1].content == "recent"
+        assert adapter.estimate_tokens("12345678") == 2
+        retry_response = await adapter.chat_with_retry([Message("user", "retry")], attempts=1)
+        assert retry_response.content == "retry"
+        await adapter.disconnect()
+        assert not adapter.is_connected
+
+    run(scenario())
+
+
+def test_model_data_classes_and_tool_formats():
+    message = Message("tool", "result", tool_calls=[{"id": "1"}], tool_call_id="1")
+    assert message.to_dict()["tool_calls"]
+    definition = ToolDefinition("scan", "scan a target", {"type": "object"})
+    assert definition.to_openai_format()["function"]["name"] == "scan"
+    assert definition.to_anthropic_format()["input_schema"]["type"] == "object"
+    response = ModelResponse("ok", "demo", {}, "stop")
+    assert response.prompt_tokens == response.completion_tokens == response.total_tokens == 0
+    usage = TokenUsage()
+    usage.add(
+        ModelResponse(
+            "ok", "demo", {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3}, "stop"
+        )
+    )
+    assert usage.to_dict()["session_tokens"] == 3
 
 
 def test_network_tools_build_and_parse_findings():
@@ -372,6 +617,49 @@ def test_prompt_parsing_and_context_utilities():
     assert "User asked" in summary and "Assistant responded" in summary
     assert "Finding:" in cot_vulnerability_analysis("open port", {"port": 443})
     assert "Target Environment" in cot_attack_path_planning([{"type": "x"}], "lab")
+
+
+def test_orchestrator_phase_lifecycle_and_restore(tmp_path):
+    async def scenario():
+        orchestrator = ScanOrchestrator(
+            ScanConfig("example.com", ["example.com"], save_dir=str(tmp_path))
+        )
+        for agent in [
+            ReconAgent(),
+            PlanningAgent(),
+            ReportingAgent(),
+            QualityAssuranceAgent(),
+            WebApplicationAgent(),
+            APISecurityAgent(),
+            NetworkExploitationAgent(),
+            PostExploitationAgent(),
+        ]:
+            orchestrator.register_agent(agent)
+        orchestrator.add_finding({"type": "manual", "target": "example.com"})
+        await orchestrator.execute_scan()
+        assert orchestrator.status is ScanStatus.COMPLETED
+        assert (orchestrator.save_dir / "report.md").exists()
+        assert orchestrator.get_all_findings()
+        restored = await ScanOrchestrator.from_state(orchestrator.scan_id, str(tmp_path))
+        assert restored.status is ScanStatus.COMPLETED
+        with pytest.raises(FileNotFoundError):
+            await ScanOrchestrator.from_state("missing", str(tmp_path))
+
+        next_scan = ScanOrchestrator(
+            ScanConfig("example.com", ["example.com"], save_dir=str(tmp_path))
+        )
+        next_agent = ReconAgent()
+        next_scan.register_agent(next_agent)
+        await next_scan.start()
+        next_agent.status = AgentStatus.RUNNING
+        await next_scan.pause()
+        assert next_scan.status is ScanStatus.PAUSED
+        await next_scan.resume()
+        assert next_scan.status is ScanStatus.RUNNING
+        await next_scan.stop()
+        assert next_scan.status is ScanStatus.CANCELLED
+
+    run(scenario())
 
 
 def test_phase5_cli_tool_and_report_commands(tmp_path, capsys):

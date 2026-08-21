@@ -83,13 +83,18 @@ class ModelFactory:
                 f"Supported providers: {[p.value for p in ModelProvider]}"
             )
 
+        # Keep adapter-specific options out of the shared model configuration.
+        config_kwargs = dict(kwargs)
+        for key in ("azure_endpoint", "azure_deployment", "api_version"):
+            config_kwargs.pop(key, None)
+
         # Create config
         config = ModelConfig(
             provider=provider_enum,
             model_name=model_name,
             api_key=api_key,
             api_base=api_base,
-            **kwargs,
+            **config_kwargs,
         )
 
         # Instantiate adapter

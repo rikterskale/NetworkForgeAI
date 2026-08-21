@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -13,8 +15,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run(name: str, command: list[str], checks: list[dict[str, object]]) -> None:
-    result = subprocess.run(command, cwd=ROOT, text=True, capture_output=True)
+def run(
+    name: str,
+    command: list[str],
+    checks: list[dict[str, object]],
+    environment: dict[str, str] | None = None,
+) -> None:
+    env = os.environ.copy()
+    if environment:
+        env.update(environment)
+    result = subprocess.run(command, cwd=ROOT, text=True, capture_output=True, env=env)
     checks.append(
         {
             "name": name,
@@ -34,6 +44,8 @@ def main() -> int:
 
     run("python compilation", [python, "-m", "compileall", "-q", "networkforgeai", "tests"], checks)
     run("CLI help", [python, "-m", "networkforgeai.cli", "--help"], checks)
+    run("CLI version", [python, "-m", "networkforgeai.cli", "--version"], checks)
+    run("CLI tool inventory", [python, "-m", "networkforgeai.cli", "--list-tools"], checks)
     run(
         "safe CLI dry run",
         [
@@ -50,14 +62,84 @@ def main() -> int:
         ],
         checks,
     )
+    report_script = """
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from networkforgeai.cli import _list_reports, _read_report
+with TemporaryDirectory() as directory:
+    root = Path(directory)
+    report = root / "scan" / "report.md"
+    report.parent.mkdir()
+    report.write_text("# readiness")
+    assert _list_reports(directory) == ["scan/report.md"]
+    assert _read_report(directory, "scan/report.md") == "# readiness"
+    try:
+        _read_report(directory, "../outside")
+    except ValueError:
+        pass
+    else:
+        raise SystemExit("report path escaped output directory")
+"""
+    run("CLI report path safety", [python, "-c", report_script], checks)
+
+    if importlib.util.find_spec("pydantic"):
+        run(
+            "configuration validation",
+            [python, "-m", "networkforgeai.cli", "--validate-config"],
+            checks,
+            {"TARGET_SCOPE": "example.com", "DASHBOARD_AUTH_TOKEN": "readiness-token"},
+        )
+    else:
+        checks.append(
+            {
+                "name": "configuration validation",
+                "passed": True,
+                "skipped": True,
+                "reason": "pydantic unavailable; runtime CI installs project dependencies",
+            }
+        )
     run("documentation audit", [python, "tools/ci_docs_audit.py"], checks)
-    report_script = (
+    report_format_script = (
         "from networkforgeai.reporting import to_csv, to_json, to_sarif; "
         "f=[{'type':'readiness','target':'example.com'}]; "
         "assert 'readiness' in to_json(f); assert 'target' in to_csv(f); "
         "assert '2.1.0' in to_sarif(f)"
     )
-    run("report format generation", [python, "-c", report_script], checks)
+    run("report format generation", [python, "-c", report_format_script], checks)
+
+    dashboard_script = """
+import json
+import os
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from fastapi.testclient import TestClient
+with TemporaryDirectory() as directory:
+    os.environ["DASHBOARD_AUTH_TOKEN"] = "readiness-token"
+    os.environ["REPORT_OUTPUT_DIR"] = directory
+    from networkforgeai.interface.dashboard import app
+    root = Path(directory) / "scan-1"
+    root.mkdir()
+    (root / "findings.json").write_text("[]")
+    (root / "scan_state.json").write_text(json.dumps({"scan_id": "scan-1", "status": "completed", "config": {"target": "example.com"}}))
+    client = TestClient(app)
+    assert client.get("/health").status_code == 200
+    assert client.get("/reports").status_code == 401
+    headers = {"Authorization": "Bearer readiness-token"}
+    assert client.get("/reports", headers=headers).status_code == 200
+    assert client.get("/reports/scan-1/findings.json", headers=headers).json()["content"] == []
+    assert client.get("/scans", headers=headers).json()["scans"][0]["scan_id"] == "scan-1"
+"""
+    if importlib.util.find_spec("fastapi"):
+        run("authenticated dashboard read-only API", [python, "-c", dashboard_script], checks)
+    else:
+        checks.append(
+            {
+                "name": "authenticated dashboard read-only API",
+                "passed": True,
+                "skipped": True,
+                "reason": "FastAPI unavailable; runtime CI installs project dependencies",
+            }
+        )
 
     policy_script = (
         "from networkforgeai.core.scope import ScopePolicy; "
