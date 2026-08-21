@@ -304,7 +304,7 @@ Step 5: What validation would confirm this?
 Provide your analysis following these steps."""
 
 
-def cot_attack_path_planning(vulnerabilities: List[Dict], target_env: str) -> str:
+def cot_attack_path_planning(vulnerabilities: List[Dict[str, Any]], target_env: str) -> str:
     """Generate chain-of-thought prompt for attack path planning."""
     vuln_list = "\n".join(
         [f"- {v.get('type', 'Unknown')}: {v.get('description', '')}" for v in vulnerabilities]
@@ -395,13 +395,15 @@ def parse_json_response(response: str) -> Optional[Dict[str, Any]]:
 
     if matches:
         try:
-            return json.loads(matches[0])
+            parsed: dict[str, Any] | None = json.loads(matches[0])
+            return parsed
         except json.JSONDecodeError:
             pass
 
     # Try to parse entire response as JSON
     try:
-        return json.loads(response)
+        parsed = json.loads(response)
+        return parsed
     except json.JSONDecodeError:
         pass
 
@@ -434,7 +436,9 @@ def extract_findings_from_response(response: str, agent_type: str) -> List[Dict[
 # ============================================================================
 
 
-def truncate_context(messages: List[Dict], max_tokens: int = 4000) -> List[Dict]:
+def truncate_context(
+    messages: List[Dict[str, Any]], max_tokens: int = 4000
+) -> List[Dict[str, Any]]:
     """Truncate message history to fit within token limit."""
     # Simple implementation - in production use proper token counting
     max_chars = max_tokens * 4  # Approximate
@@ -475,7 +479,7 @@ def truncate_context(messages: List[Dict], max_tokens: int = 4000) -> List[Dict]
     return result
 
 
-def summarize_conversation(messages: List[Dict]) -> str:
+def summarize_conversation(messages: List[Dict[str, Any]]) -> str:
     """Create a summary of conversation history."""
     summary_parts = []
 

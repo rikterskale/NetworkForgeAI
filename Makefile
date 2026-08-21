@@ -2,7 +2,7 @@
 PYTHON ?= python3
 
 install:
-	$(PYTHON) -m pip install -e '.[dev,runtime]'
+	$(PYTHON) -m pip install -e '.[dev,runtime,llm]'
 
 format:
 	ruff format networkforgeai tests tools
@@ -15,7 +15,7 @@ test:
 	$(PYTHON) -m pytest -q --cov=networkforgeai --cov-report=term-missing --cov-fail-under=90
 
 typecheck:
-	$(PYTHON) -m mypy --strict networkforgeai/__init__.py networkforgeai/core/scope.py networkforgeai/core/approval_gateway.py networkforgeai/core/validation.py networkforgeai/reporting/models.py networkforgeai/reporting/generators.py networkforgeai/reporting/compliance.py networkforgeai/integrations/webhooks.py networkforgeai/interface/dashboard.py networkforgeai/interface/cli_ui.py networkforgeai/sandbox/runner.py
+	$(PYTHON) -m mypy --strict networkforgeai
 
 security:
 	bandit -q -r networkforgeai -ll

@@ -27,6 +27,8 @@ Usage:
     response = await adapter.chat(messages=[...])
 """
 
+from typing import Any
+
 from .ai_capabilities import (
     ERROR_RECOVERY_PROMPT,
     PLANNING_AGENT_PROMPT,
@@ -63,19 +65,19 @@ from .retry import retry_async
 
 
 # Lazy imports for specific adapters
-def get_openai_adapter():
+def get_openai_adapter() -> tuple[Any, Any]:
     from .openai_adapter import LiteLLMAdapter, OpenAIAdapter
 
     return OpenAIAdapter, LiteLLMAdapter
 
 
-def get_anthropic_adapter():
+def get_anthropic_adapter() -> tuple[Any, Any]:
     from .anthropic_adapter import AnthropicAdapter, LocalLLMAdapter
 
     return AnthropicAdapter, LocalLLMAdapter
 
 
-def get_google_adapter():
+def get_google_adapter() -> tuple[Any, Any]:
     from .google_adapter import AzureOpenAIAdapter, GoogleAdapter
 
     return GoogleAdapter, AzureOpenAIAdapter

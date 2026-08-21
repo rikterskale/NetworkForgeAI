@@ -314,17 +314,17 @@
 
 ### Type-checking follow-up backlog
 
-The maintained typed surfaces pass strict MyPy in CI. A full-repository strict
-baseline recorded during Phase 8 found **140 errors across 18 files** in legacy
-paths; these remain tracked rather than silently treated as resolved.
+The maintained typed surfaces pass strict MyPy in CI. **As of the current
+session, `mypy --strict networkforgeai` passes for the entire package** and the
+CI gate runs strict MyPy over all 44 modules; LLM SDK extras (`.[llm]`) are now
+installed in CI so optional provider adapters typecheck against real stubs.
 
 | Priority | Area | Scope | Exit criterion |
 |----------|------|-------|----------------|
-| 1 | Core orchestration | `networkforgeai/core/orchestrator.py` and agent lifecycle types | Strict MyPy passes for orchestration and agents |
-| 2 | LLM adapters | Anthropic, Google, and OpenAI adapter implementations | Optional-provider imports and stream signatures are typed |
-| 3 | Dashboard | `networkforgeai/interface/dashboard.py` | ✅ Dashboard module passes strict MyPy (gate extended in Makefile) |
-| 3b | CLI UI / validation / compliance | `interface/cli_ui.py`, `core/validation.py`, `reporting/compliance.py` | ✅ Pass strict MyPy; included in the CI gate |
-| 4 | Repository gate | Remaining legacy modules (~100 errors, mostly unannotated orchestration/agents/adapters) | Full `mypy --strict networkforgeai` passes |
+| 1 | Core orchestration | `networkforgeai/core/orchestrator.py` and agent lifecycle types | ✅ Strict MyPy passes |
+| 2 | LLM adapters | Anthropic, Google, and OpenAI adapter implementations | ✅ Optional-provider imports typed against installed SDKs |
+| 3 | Dashboard / CLI UI / validation / compliance | `interface/dashboard.py`, `interface/cli_ui.py`, `core/validation.py`, `reporting/compliance.py` | ✅ Pass strict MyPy |
+| 4 | Repository gate | Full package | ✅ `make typecheck` runs `mypy --strict networkforgeai` and passes |
 
 ---
 
@@ -442,6 +442,7 @@ Based on current progress (Phase 9 active), the following capabilities are highe
 
 | Date | Phase | Changes |
 |------|-------|---------|
+| Current Session | Phase 8 (cont.) | ✅ Full-repository strict MyPy: `make typecheck` now runs `mypy --strict networkforgeai` (44 modules); CI installs `.[llm]` extras for adapter stubs |
 | Current Session | Phase 9 (cont.) | ✅ Validation engine (VAL-001/003/004/005), compliance mappings (CMP-001..003), HTML reports (RPT-006), CLI approval prompts + status display (CLI-003/004); strict MyPy gate extended to dashboard, CLI UI, validation, and compliance modules |
 | Current Session | Phase 9 | ✅ Phase 8 core quality gates closed; strict MyPy gate added for maintained typed surfaces; Phase 9 documentation work started |
 | Current Session | Phase 3 | ✅ COMPLETE: Implemented BaseTool framework, 8 tool integrations (Nmap, Masscan, Nikto, OWASP ZAP, SQLMap, Hydra, CrackMapExec, Impacket) |

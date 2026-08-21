@@ -102,7 +102,7 @@ class ScanOrchestrator:
         self.save_dir = Path(config.save_dir) / self.scan_id
         self._stop_requested = False
 
-    def register_agent(self, agent: BaseAgent):
+    def register_agent(self, agent: BaseAgent) -> None:
         """Register an agent with the orchestrator."""
         agent.approval_gateway = self.approval_gateway
         agent.message_bus = self.message_bus
@@ -110,7 +110,7 @@ class ScanOrchestrator:
         self.agents[agent.id] = agent
         asyncio.create_task(self.message_bus.register(agent.id)) if self._loop_running() else None
 
-    def unregister_agent(self, agent_id: str):
+    def unregister_agent(self, agent_id: str) -> None:
         """Remove an agent from the orchestrator."""
         if agent_id in self.agents:
             del self.agents[agent_id]
@@ -123,7 +123,7 @@ class ScanOrchestrator:
         except RuntimeError:
             return False
 
-    async def start(self):
+    async def start(self) -> None:
         """Start the penetration test scan."""
         if self.status not in {ScanStatus.PENDING, ScanStatus.PAUSED}:
             raise RuntimeError(f"Cannot start scan from status {self.status.value}")
@@ -143,14 +143,14 @@ class ScanOrchestrator:
 
         print(f"[Orchestrator] Scan {self.scan_id} started for target: {self.config.target}")
 
-    async def _log_approval_request(self, request):
+    async def _log_approval_request(self, request: Any) -> None:
         """Log all approval requests for audit trail."""
         self.approval_log.append(
             {"timestamp": datetime.utcnow().isoformat(), "request": request.to_dict()}
         )
         await self._save_state()
 
-    async def execute_scan(self):
+    async def execute_scan(self) -> None:
         """
         Execute the full penetration test with all registered agents.
 
@@ -215,7 +215,7 @@ class ScanOrchestrator:
             await self._save_state()
             await self._save_findings()
 
-    async def _execute_phase(self, agents: List[BaseAgent], phase_name: str):
+    async def _execute_phase(self, agents: list[BaseAgent], phase_name: str) -> None:
         """Execute a phase with multiple agents in parallel."""
         tasks = []
         for agent in agents:
@@ -256,7 +256,7 @@ class ScanOrchestrator:
                         self.shared_context.update(result["context_updates"])
                         await self.knowledge_base.update(result["context_updates"])
 
-    def add_finding(self, finding: Dict[str, Any]):
+    def add_finding(self, finding: dict[str, Any]) -> None:
         """Add a finding to the global collection."""
         finding["scan_id"] = self.scan_id
         finding["timestamp"] = datetime.utcnow().isoformat()
@@ -269,7 +269,7 @@ class ScanOrchestrator:
             all_findings.extend(agent.get_findings())
         return all_findings
 
-    async def pause(self):
+    async def pause(self) -> None:
         """Pause the scan by parking all active agents."""
         for agent in self.agents.values():
             if agent.status == AgentStatus.RUNNING:
@@ -278,7 +278,7 @@ class ScanOrchestrator:
         await self._save_state()
         print("[Orchestrator] Scan paused")
 
-    async def resume(self):
+    async def resume(self) -> None:
         """Resume a paused scan."""
         if self.status != ScanStatus.PAUSED:
             return
@@ -288,7 +288,7 @@ class ScanOrchestrator:
         self.status = ScanStatus.RUNNING
         print("[Orchestrator] Scan resumed")
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop the scan gracefully."""
         self._stop_requested = True
         await self.approval_gateway.emergency_stop("scan stopped by operator")
@@ -300,9 +300,9 @@ class ScanOrchestrator:
         await self._save_state()
         print("[Orchestrator] Scan stopped")
 
-    async def _save_state(self):
+    async def _save_state(self) -> None:
         """Persist current scan state to disk."""
-        state = {
+        state: dict[str, Any] = {
             "scan_id": self.scan_id,
             "status": self.status.value,
             "started_at": self.started_at.isoformat() if self.started_at else None,
@@ -323,10 +323,10 @@ class ScanOrchestrator:
         }
 
         state_file = self.save_dir / "scan_state.json"
-        with open(state_file, "w") as f:
+        with open(state_file, "w", encoding="utf-8") as f:
             json.dump(state, f, indent=2)
 
-    async def _save_findings(self):
+    async def _save_findings(self) -> None:
         """Save all findings to disk in multiple formats."""
         all_findings = self.get_all_findings()
 
@@ -339,7 +339,7 @@ class ScanOrchestrator:
         # Markdown report
         md_report = self._generate_markdown_report()
         md_file = self.save_dir / "report.md"
-        with open(md_file, "w") as f:
+        with open(md_file, "w", encoding="utf-8") as f:
             f.write(md_report)
 
     def _generate_markdown_report(self) -> str:
@@ -360,7 +360,7 @@ class ScanOrchestrator:
         ]
 
         # Group by severity
-        by_severity = {}
+        by_severity: dict[str, list[dict[str, Any]]] = {}
         for finding in self.findings:
             sev = finding.get("severity", "Unknown")
             by_severity.setdefault(sev, []).append(finding)

@@ -26,7 +26,7 @@ class ReconAgent(BaseAgent):
     - Active: Port scanning, service probing (requires explicit approval)
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(name="ReconAgent", **kwargs)
         self.discovered_hosts: List[str] = []
         self.discovered_ports: List[Dict[str, Any]] = []
@@ -83,7 +83,7 @@ class ReconAgent(BaseAgent):
 
         return results
 
-    async def _enumerate_subdomains(self, context: Dict[str, Any], results: Dict[str, Any]):
+    async def _enumerate_subdomains(self, context: Dict[str, Any], results: Dict[str, Any]) -> None:
         """Enumerate subdomains using passive techniques."""
         target = context.get("target", "")
         if not target:
@@ -118,7 +118,7 @@ class ReconAgent(BaseAgent):
 
         results["context_updates"]["discovered_hosts"] = self.discovered_hosts
 
-    async def _scan_ports(self, context: Dict[str, Any], results: Dict[str, Any]):
+    async def _scan_ports(self, context: Dict[str, Any], results: Dict[str, Any]) -> None:
         """Scan for open ports (requires human approval)."""
         target = context.get("target", "")
         if not target:
@@ -165,7 +165,7 @@ class ReconAgent(BaseAgent):
 
         results["context_updates"]["discovered_ports"] = self.discovered_ports
 
-    async def _fingerprint_services(self, context: Dict[str, Any], results: Dict[str, Any]):
+    async def _fingerprint_services(self, context: Dict[str, Any], results: Dict[str, Any]) -> None:
         """Fingerprint running services (requires approval)."""
         ports = context.get("discovered_ports", [])
         if not ports:
@@ -176,7 +176,7 @@ class ReconAgent(BaseAgent):
             action_type="service_fingerprinting",
             description="Perform service version detection on discovered ports",
             target=context.get("target", ""),
-            risk_level="low",
+            risk_level=RiskLevel.LOW,
             details={"technique": "Banner grabbing, protocol handshake analysis"},
             timeout_seconds=600,
         )
@@ -202,7 +202,7 @@ class ReconAgent(BaseAgent):
             self.add_finding(finding)
             results["findings"].append(finding)
 
-    async def _detect_technologies(self, context: Dict[str, Any], results: Dict[str, Any]):
+    async def _detect_technologies(self, context: Dict[str, Any], results: Dict[str, Any]) -> None:
         """Detect web technologies (passive, no approval needed in auto-low mode)."""
         hosts = context.get("discovered_hosts", [])
         target = context.get("target", "")

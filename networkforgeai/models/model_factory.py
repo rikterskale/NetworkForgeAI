@@ -9,7 +9,7 @@ Provides:
 """
 
 import os
-from typing import Dict, Optional, Type
+from typing import Any, Dict, Optional, Type, cast
 
 from .base_adapter import BaseAdapter, ModelConfig, ModelProvider
 
@@ -26,7 +26,7 @@ class ModelFactory:
     _adapters: Dict[ModelProvider, Type[BaseAdapter]] = {}
 
     @classmethod
-    def register_adapter(cls, provider: ModelProvider, adapter_class: Type[BaseAdapter]):
+    def register_adapter(cls, provider: ModelProvider, adapter_class: Type[BaseAdapter]) -> None:
         """Register an adapter class for a provider."""
         cls._adapters[provider] = adapter_class
 
@@ -42,7 +42,7 @@ class ModelFactory:
         model_name: str,
         api_key: Optional[str] = None,
         api_base: Optional[str] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> BaseAdapter:
         """
         Create a model adapter instance.
@@ -112,12 +112,13 @@ class ModelFactory:
                     "or azure_endpoint parameter"
                 )
 
-            return adapter_class(
-                config,
-                azure_endpoint=azure_endpoint,
-                azure_deployment=azure_deployment,
-                api_version=api_version,
-            )
+            azure_options: dict[str, Any] = {
+                "azure_endpoint": azure_endpoint,
+                "azure_deployment": azure_deployment,
+                "api_version": api_version,
+            }
+            adapter_ctor: Any = adapter_class
+            return cast(BaseAdapter, adapter_ctor(config, **azure_options))
 
         return adapter_class(config)
 
@@ -201,7 +202,7 @@ class ModelFactory:
 
     @classmethod
     def create_with_fallback(
-        cls, providers: list[str], model_names: Optional[Dict[str, str]] = None, **kwargs
+        cls, providers: list[str], model_names: Optional[Dict[str, str]] = None, **kwargs: Any
     ) -> BaseAdapter:
         """
         Create an adapter with fallback chain.
@@ -249,7 +250,7 @@ class ModelFactory:
 
     @classmethod
     async def create_with_fallback_async(
-        cls, providers: list[str], model_names: Optional[Dict[str, str]] = None, **kwargs
+        cls, providers: list[str], model_names: Optional[Dict[str, str]] = None, **kwargs: Any
     ) -> BaseAdapter:
         """Async-safe fallback creation for applications already inside an event loop."""
         model_names = model_names or {}
@@ -307,7 +308,7 @@ class ModelFactory:
 
 # Convenience functions
 def create_model(
-    provider: str, model_name: str, api_key: Optional[str] = None, **kwargs
+    provider: str, model_name: str, api_key: Optional[str] = None, **kwargs: Any
 ) -> BaseAdapter:
     """Create a model adapter (convenience function)."""
     return ModelFactory.create(provider, model_name, api_key, **kwargs)

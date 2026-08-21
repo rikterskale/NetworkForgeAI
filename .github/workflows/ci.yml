@@ -26,7 +26,7 @@ jobs:
           python-version: "3.11"
           cache: pip
       - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e ".[dev,runtime]"
+      - run: python -m pip install -e ".[dev,runtime,llm]"
       - run: python -m pip install --upgrade "setuptools>=83"
       - run: python -m pip check
       - run: ruff check networkforgeai tests tools
@@ -50,7 +50,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e ".[dev,runtime]"
+      - run: python -m pip install -e ".[dev,runtime,llm]"
       - run: python -m pytest -q --cov=networkforgeai --cov-report=xml --cov-report=term-missing --cov-fail-under=90
       - uses: actions/upload-artifact@v7
         if: always()
@@ -141,7 +141,7 @@ jobs:
           python-version: "3.11"
           cache: pip
       - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e ".[dev,runtime]"
+      - run: python -m pip install -e ".[dev,runtime,llm]"
       - run: python -m pip check
       - run: python tools/user_readiness.py --strict --json | tee user-readiness.json
       - uses: actions/upload-artifact@v7

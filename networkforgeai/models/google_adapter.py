@@ -10,7 +10,7 @@ Supports:
 """
 
 import asyncio
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any, AsyncIterator, Dict, List, Optional, cast
 
 try:
     import google.generativeai as genai
@@ -40,7 +40,7 @@ class GoogleAdapter(BaseAdapter):
     def __init__(self, config: ModelConfig):
         super().__init__(config)
         self.client = None
-        self.model = None
+        self.model: Any | None = None
 
         # Set capabilities based on model
         if "gemini" in config.model_name.lower():
@@ -63,15 +63,15 @@ class GoogleAdapter(BaseAdapter):
             if not self.config.api_key:
                 raise ValueError("Google API key required")
 
-            genai.configure(api_key=self.config.api_key)
-            self.model = genai.GenerativeModel(self.config.model_name)
+            self.model = cast(Any, genai).GenerativeModel(self.config.model_name)
+            cast(Any, genai).configure(api_key=self.config.api_key)
             self._is_connected = True
             return True
         except Exception as e:
             self._is_connected = False
             raise ConnectionError(f"Failed to connect to Google Generative AI: {e}")
 
-    async def disconnect(self):
+    async def disconnect(self) -> None:
         """Cleanup resources."""
         self.model = None
         self._is_connected = False
@@ -86,11 +86,13 @@ class GoogleAdapter(BaseAdapter):
         tools: Optional[List[ToolDefinition]] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ModelResponse:
         """Send a chat request to Gemini."""
         if not self.model:
             await self.connect()
+        if self.model is None:
+            raise ConnectionError("Google model unavailable")
 
         # Build conversation history
         chat = self.model.start_chat(history=[])
@@ -124,7 +126,7 @@ class GoogleAdapter(BaseAdapter):
         content_text = response.text
 
         # Check for function calls
-        tool_calls = []
+        tool_calls: list[dict[str, Any]] = []
         if hasattr(response, "candidates") and response.candidates:
             candidate = response.candidates[0]
             if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
@@ -170,11 +172,13 @@ class GoogleAdapter(BaseAdapter):
         tools: Optional[List[ToolDefinition]] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncIterator[str]:
         """Stream a chat response from Gemini."""
         if not self.model:
             await self.connect()
+        if self.model is None:
+            raise ConnectionError("Google model unavailable")
 
         chat = self.model.start_chat(history=[])
 
@@ -283,7 +287,7 @@ class AzureOpenAIAdapter(BaseAdapter):
         """Connect to Azure OpenAI."""
         return await self.azure_adapter.connect()
 
-    async def disconnect(self):
+    async def disconnect(self) -> None:
         """Disconnect from Azure OpenAI."""
         await self.azure_adapter.disconnect()
 
@@ -297,7 +301,7 @@ class AzureOpenAIAdapter(BaseAdapter):
         tools: Optional[List[ToolDefinition]] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ModelResponse:
         """Send chat to Azure OpenAI."""
         return await self.azure_adapter.chat(
@@ -310,7 +314,7 @@ class AzureOpenAIAdapter(BaseAdapter):
         tools: Optional[List[ToolDefinition]] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncIterator[str]:
         """Stream chat from Azure OpenAI."""
         async for chunk in self.azure_adapter.chat_stream(

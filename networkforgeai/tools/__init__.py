@@ -1,5 +1,7 @@
 """Offensive security tools integration package."""
 
+from typing import Any, cast
+
 from .base_tool import BaseTool, ToolCategory, ToolResult, ToolRiskLevel
 from .nmap_tool import MasscanTool, NmapTool
 from .password_tools import CrackMapExecTool, HydraTool, ImpacketTools
@@ -25,7 +27,7 @@ __all__ = [
 ]
 
 
-def get_available_tools() -> dict:
+def get_available_tools() -> dict[str, type[BaseTool]]:
     """Get dictionary of all available tools."""
     return {
         "nmap": NmapTool,
@@ -39,7 +41,7 @@ def get_available_tools() -> dict:
     }
 
 
-def get_tool_by_name(name: str, **kwargs) -> BaseTool:
+def get_tool_by_name(name: str, **kwargs: Any) -> BaseTool:
     """
     Get a tool instance by name.
 
@@ -60,7 +62,8 @@ def get_tool_by_name(name: str, **kwargs) -> BaseTool:
 
     approval_gateway = kwargs.pop("approval_gateway", None)
     scope_policy = kwargs.pop("scope_policy", None)
-    tool = tools[name](**kwargs)
+    tool_ctor: Any = tools[name]
+    tool = cast(BaseTool, tool_ctor(**kwargs))
     tool.approval_gateway = approval_gateway
     tool.scope_policy = scope_policy
     return tool

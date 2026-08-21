@@ -95,7 +95,7 @@ class OpenAIAdapter(BaseAdapter):
             self._is_connected = False
             raise ConnectionError(f"Failed to connect to OpenAI API: {e}")
 
-    async def disconnect(self):
+    async def disconnect(self) -> None:
         """Close the client session."""
         if self.client:
             await self.client.close()
@@ -112,17 +112,19 @@ class OpenAIAdapter(BaseAdapter):
         tools: Optional[List[ToolDefinition]] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ModelResponse:
         """Send a chat request to OpenAI."""
         if not self.client:
             await self.connect()
+        if self.client is None:
+            raise ConnectionError("OpenAI client unavailable")
 
         # Convert messages to OpenAI format
         openai_messages = self._convert_messages(messages)
 
         # Prepare parameters
-        params = {
+        params: dict[str, Any] = {
             "model": self.azure_deployment or self.config.model_name,
             "messages": openai_messages,
             "max_tokens": max_tokens or self.config.max_tokens,
@@ -184,15 +186,16 @@ class OpenAIAdapter(BaseAdapter):
         tools: Optional[List[ToolDefinition]] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncIterator[str]:
         """Stream a chat response from OpenAI."""
         if not self.client:
-            await self.connect()
+            raise RuntimeError("OpenAI client not connected; call connect() first")
 
+        client = self.client
         openai_messages = self._convert_messages(messages)
 
-        params = {
+        params: dict[str, Any] = {
             "model": self.azure_deployment or self.config.model_name,
             "messages": openai_messages,
             "max_tokens": max_tokens or self.config.max_tokens,
@@ -206,7 +209,7 @@ class OpenAIAdapter(BaseAdapter):
             params["tools"] = [t.to_openai_format() for t in tools]
 
         try:
-            stream = await self.client.chat.completions.create(**params)
+            stream = await client.chat.completions.create(**params)
 
             async for chunk in stream:
                 if chunk.choices and len(chunk.choices) > 0:
@@ -219,19 +222,18 @@ class OpenAIAdapter(BaseAdapter):
 
     def _convert_messages(self, messages: List[Message]) -> List[ChatCompletionMessageParam]:
         """Convert internal Message objects to OpenAI format."""
-        result = []
+        from typing import cast
+
+        result: List[ChatCompletionMessageParam] = []
         for msg in messages:
-            openai_msg: ChatCompletionMessageParam = {
-                "role": msg.role,  # type: ignore
-                "content": msg.content,
-            }
+            entry: dict[str, Any] = {"role": msg.role, "content": msg.content}
             if msg.name:
-                openai_msg["name"] = msg.name  # type: ignore
+                entry["name"] = msg.name
             if msg.tool_calls:
-                openai_msg["tool_calls"] = msg.tool_calls  # type: ignore
+                entry["tool_calls"] = msg.tool_calls
             if msg.tool_call_id:
-                openai_msg["tool_call_id"] = msg.tool_call_id  # type: ignore
-            result.append(openai_msg)
+                entry["tool_call_id"] = msg.tool_call_id
+            result.append(cast(ChatCompletionMessageParam, entry))
         return result
 
     def _extract_tool_calls(self, tool_calls: Any) -> List[Dict[str, Any]]:

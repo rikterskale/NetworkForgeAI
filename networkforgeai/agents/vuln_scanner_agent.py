@@ -28,7 +28,7 @@ class VulnerabilityScannerAgent(BaseAgent):
     - Provides detailed reproduction steps
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(name="VulnScannerAgent", **kwargs)
         self.vulnerabilities_found: List[Dict[str, Any]] = []
 
@@ -82,7 +82,7 @@ class VulnerabilityScannerAgent(BaseAgent):
 
         return results
 
-    async def _scan_sql_injection(self, context: Dict[str, Any], results: Dict[str, Any]):
+    async def _scan_sql_injection(self, context: Dict[str, Any], results: Dict[str, Any]) -> None:
         """Test for SQL injection vulnerabilities (requires HIGH risk approval)."""
         target_urls = context.get("discovered_urls", [])
         if not target_urls:
@@ -165,7 +165,7 @@ class VulnerabilityScannerAgent(BaseAgent):
 
         results["context_updates"]["sql_injection_vulns"] = self.vulnerabilities_found
 
-    async def _scan_xss(self, context: Dict[str, Any], results: Dict[str, Any]):
+    async def _scan_xss(self, context: Dict[str, Any], results: Dict[str, Any]) -> None:
         """Test for Cross-Site Scripting vulnerabilities (requires HIGH risk approval)."""
         target_urls = context.get("discovered_urls", [])
         if not target_urls:
@@ -232,7 +232,7 @@ class VulnerabilityScannerAgent(BaseAgent):
         results["findings"].append(finding)
         self.vulnerabilities_found.append(finding)
 
-    async def _scan_ssrf(self, context: Dict[str, Any], results: Dict[str, Any]):
+    async def _scan_ssrf(self, context: Dict[str, Any], results: Dict[str, Any]) -> None:
         """Test for Server-Side Request Forgery (requires CRITICAL risk approval)."""
         target_urls = context.get("discovered_urls", [])
         if not target_urls:
@@ -305,7 +305,7 @@ class VulnerabilityScannerAgent(BaseAgent):
         results["findings"].append(finding)
         self.vulnerabilities_found.append(finding)
 
-    async def _scan_auth_bypass(self, context: Dict[str, Any], results: Dict[str, Any]):
+    async def _scan_auth_bypass(self, context: Dict[str, Any], results: Dict[str, Any]) -> None:
         """Test for authentication bypass vulnerabilities (requires HIGH risk approval)."""
         target_urls = context.get("discovered_urls", [])
         if not target_urls:

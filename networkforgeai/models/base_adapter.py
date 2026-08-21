@@ -56,7 +56,7 @@ class ModelConfig:
     timeout: int = 60
     capabilities: List[ModelCapability] = field(default_factory=list)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not self.capabilities:
             self.capabilities = [ModelCapability.CHAT]
 
@@ -73,7 +73,7 @@ class Message:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary format."""
-        result = {"role": self.role, "content": self.content}
+        result: Dict[str, Any] = {"role": self.role, "content": self.content}
         if self.name:
             result["name"] = self.name
         if self.tool_calls:
@@ -141,7 +141,7 @@ class TokenUsage:
     total_tokens: int = 0
     session_tokens: int = 0
 
-    def add(self, response: ModelResponse):
+    def add(self, response: ModelResponse) -> None:
         """Add usage from a response."""
         self.prompt_tokens += response.prompt_tokens
         self.completion_tokens += response.completion_tokens
@@ -176,7 +176,7 @@ class BaseAdapter(ABC):
         pass
 
     @abstractmethod
-    async def disconnect(self):
+    async def disconnect(self) -> None:
         """Close connection and cleanup resources."""
         pass
 
@@ -187,7 +187,7 @@ class BaseAdapter(ABC):
         tools: Optional[List[ToolDefinition]] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ModelResponse:
         """
         Send a chat request and get a response.
@@ -204,13 +204,13 @@ class BaseAdapter(ABC):
         pass
 
     @abstractmethod
-    async def chat_stream(
+    def chat_stream(
         self,
         messages: List[Message],
         tools: Optional[List[ToolDefinition]] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncIterator[str]:
         """
         Stream a chat response.
@@ -224,12 +224,12 @@ class BaseAdapter(ABC):
         """Check if the model supports a specific capability."""
         pass
 
-    def add_message(self, role: str, content: str, **kwargs):
+    def add_message(self, role: str, content: str, **kwargs: Any) -> None:
         """Add a message to the conversation history."""
         msg = Message(role=role, content=content, **kwargs)
         self.message_history.append(msg)
 
-    def clear_history(self):
+    def clear_history(self) -> None:
         """Clear the conversation history."""
         self.message_history = []
 
@@ -237,7 +237,7 @@ class BaseAdapter(ABC):
         """Get the conversation history."""
         return self.message_history.copy()
 
-    def set_system_prompt(self, prompt: str):
+    def set_system_prompt(self, prompt: str) -> None:
         """Set or update the system prompt."""
         # Remove existing system message if present
         self.message_history = [m for m in self.message_history if m.role != "system"]
@@ -267,7 +267,7 @@ class BaseAdapter(ABC):
             return False
 
     async def chat_with_retry(
-        self, messages: List[Message], *, attempts: int = 3, **kwargs
+        self, messages: List[Message], *, attempts: int = 3, **kwargs: Any
     ) -> ModelResponse:
         """Chat with bounded exponential backoff for transient provider failures."""
         return await retry_async(lambda: self.chat(messages, **kwargs), attempts=attempts)

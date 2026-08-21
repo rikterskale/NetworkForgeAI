@@ -67,7 +67,7 @@ class AnthropicAdapter(BaseAdapter):
             self._is_connected = False
             raise ConnectionError(f"Failed to connect to Anthropic API: {e}")
 
-    async def disconnect(self):
+    async def disconnect(self) -> None:
         """Close the client session."""
         if self.client:
             await self.client.close()
@@ -84,11 +84,13 @@ class AnthropicAdapter(BaseAdapter):
         tools: Optional[List[ToolDefinition]] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ModelResponse:
         """Send a chat request to Anthropic."""
         if not self.client:
             await self.connect()
+        if self.client is None:
+            raise ConnectionError("Anthropic client unavailable")
 
         # Separate system message from conversation
         system_message = ""
@@ -104,7 +106,7 @@ class AnthropicAdapter(BaseAdapter):
         anthropic_messages = self._convert_messages(conversation_messages)
 
         # Prepare parameters
-        params = {
+        params: dict[str, Any] = {
             "model": self.config.model_name,
             "messages": anthropic_messages,
             "max_tokens": max_tokens or self.config.max_tokens,
@@ -126,7 +128,7 @@ class AnthropicAdapter(BaseAdapter):
             if not system_message:
                 params["system"] = "Respond only with valid JSON."
             else:
-                params["system"] += "\n\nRespond only with valid JSON."
+                params["system"] = f"{params['system']}\n\nRespond only with valid JSON."
 
         try:
             response = await self.client.messages.create(**params)
@@ -175,11 +177,13 @@ class AnthropicAdapter(BaseAdapter):
         tools: Optional[List[ToolDefinition]] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncIterator[str]:
         """Stream a chat response from Anthropic."""
         if not self.client:
             await self.connect()
+        if self.client is None:
+            raise ConnectionError("Anthropic client unavailable")
 
         # Separate system message
         system_message = ""
@@ -193,7 +197,7 @@ class AnthropicAdapter(BaseAdapter):
 
         anthropic_messages = self._convert_messages(conversation_messages)
 
-        params = {
+        params: dict[str, Any] = {
             "model": self.config.model_name,
             "messages": anthropic_messages,
             "max_tokens": max_tokens or self.config.max_tokens,
@@ -228,18 +232,21 @@ class AnthropicAdapter(BaseAdapter):
             if role == "tool":
                 role = "user"  # Tool responses come back as user messages
 
-            anthropic_msg = {"role": role, "content": msg.content}
+            anthropic_msg: Dict[str, Any] = {"role": role, "content": msg.content}
 
             # Handle tool calls in assistant messages
             if msg.tool_calls:
-                content_blocks = [{"type": "text", "text": msg.content}] if msg.content else []
+                content_blocks: list[dict[str, Any]] = (
+                    [{"type": "text", "text": msg.content}] if msg.content else []
+                )
                 for tc in msg.tool_calls:
+                    function_info = tc.get("function") or {}
                     content_blocks.append(
                         {
                             "type": "tool_use",
-                            "id": tc.get("id"),
-                            "name": tc.get("function", {}).get("name"),
-                            "input": tc.get("function", {}).get("arguments", {}),
+                            "id": str(tc.get("id") or ""),
+                            "name": str(function_info.get("name") or ""),
+                            "input": function_info.get("arguments", {}) or {},
                         }
                     )
                 anthropic_msg["content"] = content_blocks
@@ -294,7 +301,7 @@ class LocalLLMAdapter(BaseAdapter):
         """Connect to local LLM endpoint."""
         return await self.openai_adapter.connect()
 
-    async def disconnect(self):
+    async def disconnect(self) -> None:
         """Disconnect from local LLM."""
         await self.openai_adapter.disconnect()
 
@@ -309,7 +316,7 @@ class LocalLLMAdapter(BaseAdapter):
         tools: Optional[List[ToolDefinition]] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ModelResponse:
         """Send chat to local LLM."""
         # Note: Most local LLMs don't support tool calling yet
@@ -327,7 +334,7 @@ class LocalLLMAdapter(BaseAdapter):
         tools: Optional[List[ToolDefinition]] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> AsyncIterator[str]:
         """Stream chat from local LLM."""
         async for chunk in self.openai_adapter.chat_stream(

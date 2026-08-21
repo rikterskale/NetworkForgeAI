@@ -61,8 +61,8 @@ class BaseAgent(ABC):
         message_bus: Optional[MessageBus] = None,
         model_adapter: Any = None,
         tool_registry: Optional[Dict[str, Any]] = None,
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> None:
         self.id = agent_id or str(uuid.uuid4())
         self.name = name or self.__class__.__name__
         self.approval_gateway = approval_gateway
@@ -74,7 +74,7 @@ class BaseAgent(ABC):
         self.status = AgentStatus.IDLE
         self.current_task: Optional[str] = None
         self.findings: List[Dict[str, Any]] = []
-        self.mailbox: asyncio.Queue = asyncio.Queue()
+        self.mailbox: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         self._stop_requested = False
         self.created_at = datetime.utcnow()
         self.last_active = datetime.utcnow()
@@ -149,7 +149,7 @@ class BaseAgent(ABC):
             self.status = AgentStatus.IDLE
             return False, None
 
-    def add_finding(self, finding: Dict[str, Any]):
+    def add_finding(self, finding: dict[str, Any]) -> None:
         """Add a validated finding to the agent's collection."""
         finding["agent_id"] = self.id
         finding["agent_name"] = self.name
@@ -161,7 +161,7 @@ class BaseAgent(ABC):
         """Return all findings collected by this agent."""
         return self.findings.copy()
 
-    async def send_message(self, recipient_id: str, message: Dict[str, Any]):
+    async def send_message(self, recipient_id: str, message: dict[str, Any]) -> None:
         """
         Send a message to another agent's mailbox.
 
@@ -175,7 +175,7 @@ class BaseAgent(ABC):
         if not delivered:
             raise ValueError(f"Recipient agent is not registered: {recipient_id}")
 
-    async def receive_message(self, timeout: float = 0) -> Optional[Dict[str, Any]]:
+    async def receive_message(self, timeout: float = 0) -> dict[str, Any] | None:
         """
         Receive a message from the agent's mailbox.
 
@@ -185,27 +185,27 @@ class BaseAgent(ABC):
             if timeout > 0:
                 if self.message_bus is not None:
                     message = await self.message_bus.receive(self.id, timeout)
-                    return message.payload if message else None
+                    return dict(message.payload) if message else None
                 return await asyncio.wait_for(self.mailbox.get(), timeout=timeout)
             else:
                 if self.message_bus is not None:
                     message = await self.message_bus.receive(self.id)
-                    return message.payload if message else None
+                    return dict(message.payload) if message else None
                 return self.mailbox.get_nowait()
         except (asyncio.TimeoutError, asyncio.QueueEmpty):
             return None
 
-    def park(self):
+    def park(self) -> None:
         """Park the agent (pause execution while preserving state)."""
         self.status = AgentStatus.PARKED
         self.context_summary = self._summarize_context()
 
-    def resume(self):
+    def resume(self) -> None:
         """Resume a parked agent."""
         if self.status == AgentStatus.PARKED:
             self.status = AgentStatus.IDLE
 
-    def stop(self):
+    def stop(self) -> None:
         """Request graceful stop of the agent."""
         self._stop_requested = True
 
@@ -213,7 +213,7 @@ class BaseAgent(ABC):
         """Check if stop has been requested."""
         return self._stop_requested
 
-    async def ask_model(self, messages: List[Any], **kwargs):
+    async def ask_model(self, messages: list[Any], **kwargs: Any) -> Any:
         """Call the configured model adapter, if one is attached."""
         if self.model_adapter is None:
             raise RuntimeError("No model adapter configured for this agent")
@@ -276,7 +276,7 @@ class BaseAgent(ABC):
             context_summary=self.context_summary,
         )
 
-    def from_state(self, state: AgentState):
+    def from_state(self, state: AgentState) -> None:
         """Restore state from serialized snapshot."""
         self.id = state.id
         self.name = state.name
@@ -287,6 +287,6 @@ class BaseAgent(ABC):
         self.last_active = state.last_active
         self.context_summary = state.context_summary
 
-    async def cleanup(self):
+    async def cleanup(self) -> None:
         """Cleanup resources before agent termination."""
         pass  # Override in subclasses if needed

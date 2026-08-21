@@ -261,12 +261,17 @@ class BaseTool(ABC):
                 category=self.category,
             )
 
-    def _run_approval_request(self, target: str, timeout: int):
+    def _run_approval_request(self, target: str, timeout: int) -> Any:
         """Run the async approval protocol from this synchronous tool boundary."""
         import asyncio
 
-        async def request_and_wait():
-            request = await self.approval_gateway.request_approval(
+        if self.approval_gateway is None:
+            raise RuntimeError("Approval gateway is not configured for this tool")
+
+        gateway = self.approval_gateway
+
+        async def request_and_wait() -> Any:
+            request = await gateway.request_approval(
                 agent_id=f"tool:{self.name}",
                 action_type=self.name,
                 description=f"Execute {self.name} against {target}",
@@ -275,7 +280,7 @@ class BaseTool(ABC):
                 details={"command_builder": self.name},
                 timeout_seconds=timeout,
             )
-            return await self.approval_gateway.wait_for_approval(request.id)
+            return await gateway.wait_for_approval(request.id)
 
         try:
             asyncio.get_running_loop()
