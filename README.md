@@ -205,6 +205,8 @@ jobs:
 
 - [Installation Guide](docs/installation.md)
 - [Configuration Reference](docs/configuration.md)
+- [CLI Reference and Beginner Workflows](docs/cli-reference.md)
+- [Troubleshooting Guide](docs/troubleshooting.md)
 - [Agent System](docs/agents.md)
 - [Approval Workflow](docs/approval-system.md)
 - [Reporting Guide](docs/reporting.md)
