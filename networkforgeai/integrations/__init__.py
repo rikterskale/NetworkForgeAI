@@ -8,6 +8,7 @@ from .notifications import (
     TeamsNotifier,
     summarize_findings,
 )
+from .siem import SplunkHecForwarder, cef_encode, correlate_findings
 from .trackers import (
     GitHubIssueCreator,
     GitLabIssueCreator,
@@ -34,4 +35,7 @@ __all__ = [
     "select_notable_findings",
     "EmailSettings",
     "SmtpReportSender",
+    "SplunkHecForwarder",
+    "cef_encode",
+    "correlate_findings",
 ]

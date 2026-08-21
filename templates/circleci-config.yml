@@ -1,0 +1,73 @@
+# CircleCI configuration for NetworkForgeAI quality gates.
+#
+# Mirrors the GitHub Actions pipeline (.github/workflows/ci.yml) and the
+# GitLab/Jenkins templates: lint, tests with coverage, strict typecheck,
+# security scanning, documentation audit, and the findings policy gate.
+#
+# Usage: place at .circleci/config.yml in your repository (or reference via
+# dynamic configuration) and adjust FINDINGS_INPUT as needed.
+
+version: 2.1
+
+workflows:
+  quality-gates:
+    jobs:
+      - lint
+      - test
+      - typecheck
+      - security
+      - docs
+      - findings-gate
+
+jobs:
+  lint:
+    docker:
+      - image: cimg/python:3.11
+    steps:
+      - checkout
+      - run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,runtime,llm]"
+      - run: ruff check networkforgeai tests tools
+      - run: ruff format --check networkforgeai tests tools
+
+  test:
+    docker:
+      - image: cimg/python:3.11
+    steps:
+      - checkout
+      - run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,runtime,llm]"
+      - run: pytest -q --cov=networkforgeai --cov-report=term-missing --cov-fail-under=90
+
+  typecheck:
+    docker:
+      - image: cimg/python:3.11
+    steps:
+      - checkout
+      - run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,runtime,llm]"
+      - run: mypy --strict networkforgeai
+
+  security:
+    docker:
+      - image: cimg/python:3.11
+    steps:
+      - checkout
+      - run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,runtime,llm]"
+      - run: bandit -q -r networkforgeai -ll
+      - run: pip-audit
+
+  docs:
+    docker:
+      - image: cimg/python:3.11
+    steps:
+      - checkout
+      - run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,runtime,llm]"
+      - run: python tools/ci_docs_audit.py
+
+  findings-gate:
+    environment:
+      FINDINGS_INPUT: tests/fixtures/ci-findings-pass.json
+    docker:
+      - image: cimg/python:3.11
+    steps:
+      - checkout
+      - run: python -m pip install --upgrade pip && python -m pip install -e ".[dev,runtime,llm]"
+      - run: python tools/ci_findings_gate.py "$FINDINGS_INPUT" --json

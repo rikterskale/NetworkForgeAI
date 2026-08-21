@@ -99,7 +99,7 @@
 | ID | Tool/Capability | Status | Integration Method |
 |----|-----------------|--------|-------------------|
 | TLS-101 | Caido proxy integration | ✅ | Docker container (already in compose) |
-| TLS-102 | Burp Suite Community | 🔍 | License/automation constraints |
+| TLS-102 | Burp Suite Community | ⚠️ | Blocked: REST API requires a Pro license; Community edition has no automation surface. Revisit if a Pro license is procured |
 | TLS-103 | OWASP ZAP integration | ✅ | CLI wrapper with alert parsing |
 | TLS-104 | Custom browser automation | ✅ | `tools/browser_tool.py`: headless Playwright surface discovery (optional `[browser]` extra; sandbox image needs Chromium) |
 | TLS-105 | JWT tool integration | ✅ | `tools/jwt_tool.py`: passive decode + misconfiguration checks (alg=none, key-header/kid injection, expiry) |
@@ -282,15 +282,15 @@
 |----|----------|--------|--------------|
 | CICD-001 | GitHub Actions | ✅ | Findings policy gate and readiness artifacts |
 | CICD-002 | GitLab CI | ✅ | Parity template `templates/gitlab-ci-networkforgeai.yml` (lint/test/typecheck/security/docs/findings gate) |
-| CICD-003 | Jenkins | 📋 | Plugin or webhook |
-| CICD-004 | CircleCI | 🔍 | Orb development |
+| CICD-003 | Jenkins | ✅ | Declarative pipeline parity template `templates/Jenkinsfile` |
+| CICD-004 | CircleCI | ✅ | Config parity template `templates/circleci-config.yml` (orb not required) |
 | CICD-005 | Azure Pipelines | 🔍 | Task development |
 
 ### Security Tools
 | ID | Tool Category | Status | Integration Purpose |
 |----|---------------|--------|---------------------|
-| INT-201 | SIEM systems | 🔍 | Alert forwarding |
-| INT-202 | Vulnerability scanners | 🔍 | Result correlation |
+| INT-201 | SIEM systems | ✅ | Splunk HEC forwarder with JSON and CEF event modes (`integrations/siem.SplunkHecForwarder`); HTTPS-only |
+| INT-202 | Vulnerability scanners | ✅ | Cross-source finding correlation by target + CWE/type (`integrations/siem.correlate_findings`) |
 | INT-203 | Ticketing systems | ✅ | Generic HTTPS JSON webhook ticket creation (`WebhookTicketClient`) |
 | INT-204 | Secret managers | 🔍 | Credential injection |
 
@@ -305,7 +305,7 @@
 | TST-002 | Integration tests | ✅ | Reporting, webhook, and workflow tests |
 | TST-003 | Agent behavior tests | ✅ | Mock approvals and model-independent paths |
 | TST-004 | Safety mechanism tests | ✅ | Approval bypass prevention and fail-closed checks |
-| TST-005 | Performance tests | 🔍 | Load testing agents |
+| TST-005 | Performance tests | ✅ | CPU-only budget tests for hot paths (`tests/test_performance.py`) — summarize, report generation, normalization, concurrent approvals |
 | TST-006 | Security tests | 🔍 | Pen-test the pentester |
 
 ### Quality Gates

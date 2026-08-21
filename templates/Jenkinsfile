@@ -1,0 +1,64 @@
+// Jenkins declarative pipeline for NetworkForgeAI quality gates.
+//
+// Mirrors the GitHub Actions pipeline (.github/workflows/ci.yml) and the
+# GitLab template: lint, tests with coverage, strict typecheck, security
+// scanning, documentation audit, and the findings policy gate.
+//
+// Usage: point a multibranch pipeline at this repo (or copy this file into
+// your own repository) and adjust the FINDINGS_INPUT variable.
+
+pipeline {
+    agent any
+
+    environment {
+        FINDINGS_INPUT = 'tests/fixtures/ci-findings-pass.json'
+        PIP_CACHE_DIR = "$WORKSPACE/.cache/pip"
+    }
+
+    stages {
+        stage('setup') {
+            steps {
+                sh 'python -m pip install --upgrade pip'
+                sh 'python -m pip install -e ".[dev,runtime,llm]"'
+            }
+        }
+        stage('lint') {
+            steps {
+                sh 'ruff check networkforgeai tests tools'
+                sh 'ruff format --check networkforgeai tests tools'
+            }
+        }
+        stage('test') {
+            steps {
+                sh 'pytest -q --cov=networkforgeai --cov-report=term-missing --cov-fail-under=90'
+            }
+        }
+        stage('typecheck') {
+            steps {
+                sh 'mypy --strict networkforgeai'
+            }
+        }
+        stage('security') {
+            steps {
+                sh 'bandit -q -r networkforgeai -ll'
+                sh 'pip-audit'
+            }
+        }
+        stage('docs') {
+            steps {
+                sh 'python tools/ci_docs_audit.py'
+            }
+        }
+        stage('findings-gate') {
+            steps {
+                sh 'python tools/ci_findings_gate.py "$FINDINGS_INPUT" --json'
+            }
+        }
+    }
+
+    post {
+        always {
+            junit allowEmptyResults: true, testResults: '**/test-results.xml'
+        }
+    }
+}

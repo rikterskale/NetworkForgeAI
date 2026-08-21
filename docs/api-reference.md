@@ -120,6 +120,18 @@ payloads carry sanitized summaries only and tokens are never logged.
 
 All constructors raise `ValueError` on empty tokens or non-HTTPS endpoints.
 
+### `networkforgeai.integrations.siem`
+
+SIEM forwarding and cross-source correlation (INT-201/202).
+
+- `cef_encode(finding) -> str` — single-line CEF event with proper escaping.
+- `SplunkHecForwarder(hec_url, token, index=None, source_type=...,
+  use_cef=False)` — `forward_finding(finding)` / `forward_findings(findings)`
+  post to a Splunk HTTP Event Collector over HTTPS.
+- `correlate_findings(source_groups) -> list[dict]` — merges normalized
+  findings from multiple scanner sources into records keyed by
+  `(target, CWE|type)`; highest severity wins, sources are tracked per record.
+
 ### `networkforgeai.integrations.email_delivery`
 
 SMTP report delivery (RPT-007 / INT-104).
