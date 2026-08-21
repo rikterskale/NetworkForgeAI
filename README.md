@@ -218,6 +218,8 @@ jobs:
 - [CI/CD Integration](docs/ci-cd.md)
 - [Advanced Features](docs/advanced-features.md)
 - [Interface Guide](docs/interfaces.md)
+- [API Reference](docs/api-reference.md)
+- [FAQ](docs/faq.md)
 - [Ethical Guidelines](docs/ethics.md)
 
 ## License

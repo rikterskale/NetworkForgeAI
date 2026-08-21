@@ -340,20 +340,20 @@ installed in CI so optional provider adapters typecheck against real stubs.
 | DOC-005 | GUI user manual | 📋 | Blocked until GUI ships |
 | DOC-006 | Agent playbook | ✅ | `docs/agents.md` |
 | DOC-007 | Troubleshooting guide | ✅ | `docs/troubleshooting.md` |
-| DOC-008 | FAQ | 📋 | Not started |
+| DOC-008 | FAQ | ✅ | `docs/faq.md` |
 
 ### Phase 9 Initial Deliverables
 
 - [x] Publish installation and configuration guides.
 - [x] Document CLI workflows and approval behavior.
-- [ ] Add architecture, API, security-model, and deployment references. (security model ✅; API reference outstanding)
+- [x] Add architecture, API, security-model, and deployment references. (security model ✅; API reference ✅; deep-dive architecture doc outstanding)
 - [ ] Create example scan scenarios and operator training material.
 
 ### Technical Documentation
 | ID | Document | Status | Audience |
 |----|----------|--------|----------|
 | DOC-101 | Architecture overview | 🚧 | Component map in README plus `docs/agents.md`/`docs/approval-system.md`; no dedicated deep-dive yet |
-| DOC-102 | API reference | 📋 | Not started |
+| DOC-102 | API reference | ✅ | `docs/api-reference.md` (reporting, validation, safety core, orchestration, integrations) |
 | DOC-103 | Contributing guide | 📋 | Partially covered by `docs/installation.md` developer extras |
 | DOC-104 | Security model whitepaper | ✅ | `SECURITY.md`, `docs/ethics.md`, `docs/approval-system.md` |
 | DOC-105 | Deployment guide | 🚧 | Docker/compose files documented in `docs/installation.md`; production deployment not yet written |
