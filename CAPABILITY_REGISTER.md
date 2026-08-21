@@ -1,7 +1,7 @@
 # NetworkForgeAI Capability Register & Roadmap
 
 **Last Updated:** Phase 2 Complete  
-**Status:** Core Architecture & Agent System Implemented  
+**Status:** Core architecture prototype hardened; end-to-end platform remains in progress
 **Safety Model:** Human-in-the-Loop (HITL) Required for All Actions
 
 ---
@@ -18,7 +18,7 @@
 
 ---
 
-## 🏗️ Phase 1: Foundation & Architecture (✅ COMPLETE)
+## 🏗️ Phase 1: Foundation & Architecture (🚧 PARTIAL)
 
 ### Core Infrastructure
 | ID | Capability | Status | Notes |
@@ -41,7 +41,7 @@
 
 ---
 
-## 🤖 Phase 2: Core Orchestrator & Agent System (✅ COMPLETE)
+## 🤖 Phase 2: Core Orchestrator & Agent System (🚧 PARTIAL)
 
 ### Orchestration Engine
 | ID | Capability | Status | Notes |
@@ -78,7 +78,7 @@
 
 ---
 
-## 🛠️ Phase 3: Offensive Toolkit Integration (✅ COMPLETE)
+## 🛠️ Phase 3: Offensive Toolkit Integration (🚧 PARTIAL)
 
 **Completion Date:** Current Session  
 **Implementation Summary:** Core framework with 8 production-ready tool integrations
@@ -152,7 +152,7 @@
 
 ---
 
-## 🧠 Phase 4: AI/LLM Integration (✅ COMPLETE)
+## 🧠 Phase 4: AI/LLM Integration (🚧 ADAPTERS IMPLEMENTED)
 
 **Completion Date:** Current Session  
 **Implementation Summary:** Full LLM adapter layer with multi-provider support and prompt engineering library

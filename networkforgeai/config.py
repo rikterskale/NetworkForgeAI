@@ -80,7 +80,7 @@ class Settings(BaseSettings):
     
     # Dashboard Configuration
     dashboard_port: int = Field(default=8080, ge=1, le=65535)
-    dashboard_auth_token: str = Field(default="changeme", min_length=1)
+    dashboard_auth_token: str = Field(default="", description="Required bearer token for dashboard access")
     
     # Caido Proxy
     caido_web_port: int = Field(default=8090, ge=1, le=65535)
@@ -129,6 +129,14 @@ class Settings(BaseSettings):
                 "No LLM provider configured. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, "
                 "GOOGLE_API_KEY, or LOCAL_LLM_URL in your .env file."
             )
+        return True
+
+    def validate_security_config(self) -> bool:
+        """Reject unsafe production defaults before starting a scan."""
+        if not self.parsed_target_scope:
+            raise ValueError("TARGET_SCOPE must contain at least one authorized target")
+        if self.dashboard_auth_token == "changeme":
+            raise ValueError("DASHBOARD_AUTH_TOKEN must be changed from the development default")
         return True
 
 

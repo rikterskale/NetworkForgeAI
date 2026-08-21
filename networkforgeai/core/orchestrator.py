@@ -16,6 +16,7 @@ from enum import Enum
 
 from .approval_gateway import ApprovalGateway, RiskLevel
 from .base_agent import BaseAgent, AgentStatus, AgentState
+from ..reporting import to_csv, to_json, to_sarif
 
 
 class ScanStatus(Enum):
@@ -72,9 +73,15 @@ class ScanOrchestrator:
         self.scan_id = str(uuid.uuid4())
         self.status = ScanStatus.PENDING
         self.agents: Dict[str, BaseAgent] = {}
-        self.approval_gateway = ApprovalGateway(mode=config.approval_mode)
+        self.approval_gateway = ApprovalGateway(
+            mode=config.approval_mode,
+            audit_log_path=Path(config.save_dir) / "approval_audit.jsonl",
+        )
         self.shared_context: Dict[str, Any] = {
-            "targets": [],
+            "target": config.target,
+            "targets": [config.target],
+            "scope": config.scope,
+            "excluded": config.excluded,
             "discovered_services": [],
             "vulnerabilities": [],
             "credentials": [],
@@ -99,6 +106,8 @@ class ScanOrchestrator:
     
     async def start(self):
         """Start the penetration test scan."""
+        if self.status not in {ScanStatus.PENDING, ScanStatus.PAUSED}:
+            raise RuntimeError(f"Cannot start scan from status {self.status.value}")
         self.status = ScanStatus.RUNNING
         self.started_at = datetime.utcnow()
         
@@ -134,6 +143,8 @@ class ScanOrchestrator:
         """
         if not self.agents:
             raise ValueError("No agents registered for scan")
+        if self.status == ScanStatus.PENDING:
+            await self.start()
             
         try:
             # Phase 1: Reconnaissance
@@ -280,8 +291,9 @@ class ScanOrchestrator:
         
         # JSON format
         findings_file = self.save_dir / "findings.json"
-        with open(findings_file, "w") as f:
-            json.dump(all_findings, f, indent=2)
+        findings_file.write_text(to_json(all_findings))
+        (self.save_dir / "findings.csv").write_text(to_csv(all_findings))
+        (self.save_dir / "findings.sarif").write_text(to_sarif(all_findings))
         
         # Markdown report
         md_report = self._generate_markdown_report()
@@ -373,5 +385,10 @@ class ScanOrchestrator:
         orchestrator.completed_at = datetime.fromisoformat(state["completed_at"]) if state["completed_at"] else None
         orchestrator.shared_context = state["shared_context"]
         orchestrator.approval_log = state["approval_log"]
+
+        findings_file = save_dir / "findings.json"
+        if findings_file.exists():
+            with open(findings_file) as f:
+                orchestrator.findings = json.load(f)
         
         return orchestrator

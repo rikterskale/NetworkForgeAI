@@ -10,8 +10,9 @@ import uuid
 from enum import Enum
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, Callable, Awaitable
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
+from pathlib import Path
 
 
 class ApprovalStatus(Enum):
@@ -96,11 +97,12 @@ class ApprovalGateway:
     - Auto-approved: Only for read-only reconnaissance (use with caution)
     """
     
-    def __init__(self, mode: str = "manual"):
+    def __init__(self, mode: str = "manual", audit_log_path: Optional[str | Path] = None):
         self.mode = mode
         self.requests: Dict[str, ApprovalRequest] = {}
         self.callbacks: Dict[str, Callable[[ApprovalRequest], Awaitable[None]]] = {}
         self._lock = asyncio.Lock()
+        self.audit_log_path = Path(audit_log_path) if audit_log_path else None
         
     async def request_approval(
         self,
@@ -127,6 +129,9 @@ class ApprovalGateway:
         Returns:
             ApprovalRequest object with status updated after approval/rejection
         """
+        if isinstance(risk_level, str):
+            risk_level = RiskLevel(risk_level.lower())
+
         request = ApprovalRequest(
             agent_id=agent_id,
             action_type=action_type,
@@ -157,10 +162,10 @@ class ApprovalGateway:
         """Determine if request should be auto-approved based on mode and risk."""
         if self.mode == "manual":
             return False
-        elif self.mode == "auto-low":
+        elif self.mode in {"auto-low", "moderate"}:
             return risk_level == RiskLevel.LOW
-        elif self.mode == "auto-approved":
-            return True
+        elif self.mode in {"auto-approved", "lenient"}:
+            return risk_level in {RiskLevel.LOW, RiskLevel.MEDIUM}
         return False
     
     async def approve(
@@ -182,6 +187,8 @@ class ApprovalGateway:
             request.approver_id = approver_id
             request.approved_at = datetime.utcnow()
             request.response_data = response_data
+
+        self._audit(request)
             
         # Notify callbacks
         for callback in self.callbacks.values():
@@ -210,6 +217,8 @@ class ApprovalGateway:
             request.status = ApprovalStatus.REJECTED
             request.approver_id = approver_id
             request.rejection_reason = reason
+
+        self._audit(request)
             
         # Notify callbacks
         for callback in self.callbacks.values():
@@ -273,6 +282,9 @@ class ApprovalGateway:
         for rid in expired:
             del self.requests[rid]
 
-
-# Import timedelta for datetime arithmetic
-from datetime import timedelta
+    def _audit(self, request: ApprovalRequest) -> None:
+        if not self.audit_log_path:
+            return
+        self.audit_log_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.audit_log_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(request.to_dict()) + "\n")

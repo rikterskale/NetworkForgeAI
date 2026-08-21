@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   networkforgeai:
     build:
@@ -30,9 +28,9 @@ services:
     read_only: true
     tmpfs:
       - /tmp
-    # Health check for sandbox availability
+    # Health check for package availability
     healthcheck:
-      test: ["CMD", "python", "-c", "import socket; s=socket.socket(); s.connect(('localhost', 8081)); s.close()"]
+      test: ["CMD", "python", "-c", "import networkforgeai"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -40,15 +38,14 @@ services:
 
   dashboard:
     build:
-      context: ./interface
-      dockerfile: Dockerfile.dashboard
+      context: .
+      dockerfile: Dockerfile
     container_name: networkforgeai-dashboard
     ports:
       - "${DASHBOARD_PORT:-8080}:8080"
     environment:
-      - NETWORKFORGE_HOST=networkforgeai
-      - NETWORKFORGE_PORT=8081
-      - AUTH_TOKEN=${DASHBOARD_AUTH_TOKEN:-changeme}
+      - DASHBOARD_AUTH_TOKEN=${DASHBOARD_AUTH_TOKEN:-}
+      - REPORT_OUTPUT_DIR=/app/reports
     volumes:
       - ./reports:/app/reports:ro
       - ./logs:/app/logs:ro
@@ -57,6 +54,7 @@ services:
     depends_on:
       networkforgeai:
         condition: service_healthy
+    command: ["uvicorn", "networkforgeai.interface.dashboard:app", "--host", "0.0.0.0", "--port", "8080"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -103,6 +101,3 @@ networks:
     ipam:
       config:
         - subnet: 172.28.0.0/16
-
-volumes:
-  ollama_data:

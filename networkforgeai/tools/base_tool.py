@@ -6,8 +6,10 @@ from typing import Any, Dict, List, Optional
 from enum import Enum
 import logging
 import subprocess
-import json
 from datetime import datetime
+
+from ..core.approval_gateway import ApprovalGateway, ApprovalStatus, RiskLevel
+from ..core.scope import ScopePolicy
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +90,9 @@ class BaseTool(ABC):
     risk_level: ToolRiskLevel = ToolRiskLevel.LOW
     requires_approval: bool = False
     
-    def __init__(self, sandbox_mode: bool = True, dry_run: bool = False):
+    def __init__(self, sandbox_mode: bool = True, dry_run: bool = False,
+                 approval_gateway: Optional[ApprovalGateway] = None,
+                 scope_policy: Optional[ScopePolicy] = None):
         """
         Initialize tool.
         
@@ -98,6 +102,8 @@ class BaseTool(ABC):
         """
         self.sandbox_mode = sandbox_mode
         self.dry_run = dry_run
+        self.approval_gateway = approval_gateway
+        self.scope_policy = scope_policy
         self.logger = logging.getLogger(f"{__name__}.{self.name}")
     
     @abstractmethod
@@ -124,15 +130,15 @@ class BaseTool(ABC):
         Returns:
             True if target is valid and in scope
         """
-        # Basic validation - should be overridden with scope checking
         if not target or target.strip() == "":
             return False
-        
-        # Prevent localhost/internal IPs unless explicitly allowed
-        if target in ["localhost", "127.0.0.1", "::1"]:
-            self.logger.warning(f"Target {target} is localhost - ensure this is intended")
-        
-        return True
+        if self.scope_policy is not None and not self.scope_policy.contains(target):
+            self.logger.warning("Target is outside the configured authorization scope: %s", target)
+            return False
+        return self.scope_policy is not None
+
+    def _approval_required(self) -> bool:
+        return self.requires_approval or self.risk_level in {ToolRiskLevel.HIGH, ToolRiskLevel.CRITICAL}
     
     def execute(
         self, 
@@ -153,6 +159,13 @@ class BaseTool(ABC):
         """
         if not self.validate_target(target):
             raise ValueError(f"Invalid or out-of-scope target: {target}")
+
+        if self._approval_required() and not self.dry_run:
+            if self.approval_gateway is None:
+                raise PermissionError(f"{self.name} requires an approval gateway")
+            request = self._run_approval_request(target, timeout)
+            if request.status != ApprovalStatus.APPROVED:
+                raise PermissionError(f"{self.name} execution was not approved: {request.status.value}")
         
         command = self.build_command(target, options)
         command_str = " ".join(command)
@@ -196,7 +209,7 @@ class BaseTool(ABC):
                 end_time=end_time,
                 risk_level=self.risk_level,
                 category=self.category,
-                findings=self.parse_findings(result.stdout, result.stderr)
+                findings=[self._sanitize_finding(finding) for finding in self.parse_findings(result.stdout, result.stderr)]
             )
             
             if result.returncode != 0:
@@ -220,6 +233,7 @@ class BaseTool(ABC):
                 risk_level=self.risk_level,
                 category=self.category
             )
+
         except Exception as e:
             end_time = datetime.now()
             self.logger.error(f"{self.name} failed: {str(e)}")
@@ -234,6 +248,28 @@ class BaseTool(ABC):
                 risk_level=self.risk_level,
                 category=self.category
             )
+
+    def _run_approval_request(self, target: str, timeout: int):
+        """Run the async approval protocol from this synchronous tool boundary."""
+        import asyncio
+
+        async def request_and_wait():
+            request = await self.approval_gateway.request_approval(
+                agent_id=f"tool:{self.name}",
+                action_type=self.name,
+                description=f"Execute {self.name} against {target}",
+                target=target,
+                risk_level=RiskLevel(self.risk_level.value),
+                details={"command_builder": self.name},
+                timeout_seconds=timeout,
+            )
+            return await self.approval_gateway.wait_for_approval(request.id)
+
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(request_and_wait())
+        raise RuntimeError("Synchronous tool execution cannot request approval inside a running event loop")
     
     def parse_findings(self, stdout: str, stderr: str) -> List[Dict[str, Any]]:
         """
@@ -251,6 +287,16 @@ class BaseTool(ABC):
         # Default implementation returns empty list
         # Subclasses should override with actual parsing logic
         return []
+
+    @staticmethod
+    def _sanitize_finding(finding: Dict[str, Any]) -> Dict[str, Any]:
+        """Prevent credentials and tokens from being emitted into reports."""
+        secret_keys = {"password", "secret", "token", "api_key", "private_key"}
+        sanitized = dict(finding)
+        for key in secret_keys:
+            if key in sanitized and sanitized[key] is not None:
+                sanitized[key] = "[REDACTED]"
+        return sanitized
     
     def get_info(self) -> Dict[str, Any]:
         """Get tool information."""

@@ -7,6 +7,9 @@ Main package initialization with human-in-the-loop approval system.
 __version__ = "0.1.0"
 __author__ = "NetworkForgeAI Team"
 
-from .config import settings
+try:
+    from .config import settings
+except ImportError:  # Allows lightweight modules to be inspected before extras are installed.
+    settings = None
 
 __all__ = ["settings", "__version__"]

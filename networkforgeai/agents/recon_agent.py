@@ -15,6 +15,7 @@ import asyncio
 from typing import Dict, Any, List
 
 from ..core.base_agent import BaseAgent, AgentStatus
+from ..core.approval_gateway import RiskLevel
 
 
 class ReconAgent(BaseAgent):
@@ -81,7 +82,8 @@ class ReconAgent(BaseAgent):
             
         finally:
             self.status = AgentStatus.IDLE
-            self.last_active = asyncio.get_event_loop().time()
+            from datetime import datetime
+            self.last_active = datetime.utcnow()
             
         return results
     
@@ -131,7 +133,7 @@ class ReconAgent(BaseAgent):
             action_type="port_scan",
             description=f"Perform TCP port scan on {target} to identify open services",
             target=target,
-            risk_level="low",  # Non-intrusive SYN scan
+            risk_level=RiskLevel.LOW,  # Non-intrusive SYN scan
             details={
                 "scan_type": "TCP SYN",
                 "ports": "1-1000",

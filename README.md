@@ -97,21 +97,30 @@ cp .env.example .env
 # Edit .env with your LLM API key and authorized targets
 ```
 
-### 2. Start the platform
+### 2. Install the package
 ```bash
-docker-compose up -d
+python -m pip install -e '.[runtime,dev]'
 ```
 
-### 3. Initialize a scan
+### 3. Run a scope-bound dry run
 ```bash
-python -m networkforgeai.cli --target https://authorized-target.com --mode recon
+python -m networkforgeai.cli \
+  --target example.com \
+  --scope example.com \
+  --tool nmap \
+  --dry-run
 ```
 
-### 4. Access the dashboard
+Every invocation requires an explicit allow-list scope. High-risk tools also
+require an approval gateway and cannot execute directly without one.
+
+### 4. Start the dashboard API (optional)
 ```bash
-python -m networkforgeai.interface.dashboard --port 8080
+export DASHBOARD_AUTH_TOKEN='replace-with-a-random-token'
+export REPORT_OUTPUT_DIR=./reports
+uvicorn networkforgeai.interface.dashboard:app --host 127.0.0.1 --port 8080
 ```
-Navigate to `http://localhost:8080` to view live progress and approve actions.
+The dashboard currently exposes authenticated read-only health and report-listing endpoints.
 
 ## Workflows
 

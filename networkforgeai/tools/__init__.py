@@ -61,4 +61,9 @@ def get_tool_by_name(name: str, **kwargs) -> BaseTool:
     if name not in tools:
         raise ValueError(f"Unknown tool: {name}. Available: {list(tools.keys())}")
     
-    return tools[name](**kwargs)
+    approval_gateway = kwargs.pop("approval_gateway", None)
+    scope_policy = kwargs.pop("scope_policy", None)
+    tool = tools[name](**kwargs)
+    tool.approval_gateway = approval_gateway
+    tool.scope_policy = scope_policy
+    return tool
