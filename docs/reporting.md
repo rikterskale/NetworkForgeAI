@@ -49,3 +49,16 @@ Use `annotate_compliance` to attach the mappings to normalized findings and
   internet exposure, finding class).
 
 All outputs are advisory; nothing here bypasses the approval gateway.
+
+## Notifications
+
+`networkforgeai.integrations.notifications` delivers sanitized finding
+summaries to collaboration tools over an HTTPS-only JSON transport:
+
+- `SlackNotifier.notify_findings(...)` posts severity counts and the top
+  findings to a Slack incoming webhook.
+- `JiraNotifier.create_issue_for_finding(...)` opens one Jira issue per
+  validated finding using basic-auth API tokens.
+
+Payloads contain normalized, redacted finding data only; credentials are never
+logged or embedded in reports.

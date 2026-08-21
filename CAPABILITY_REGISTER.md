@@ -260,14 +260,14 @@
 | INT-001 | GitHub | 📋 | Actions, Issues, PR comments |
 | INT-002 | GitLab | 📋 | CI/CD, Issues, MR comments |
 | INT-003 | Bitbucket | 📋 | Pipelines, Issues |
-| INT-004 | Jira | 📋 | Issue creation, status sync |
+| INT-004 | Jira | ✅ | Issue creation from findings via REST (`integrations/notifications.py`, HTTPS-only) |
 | INT-005 | Linear | 📋 | Issue creation |
 | INT-006 | Azure DevOps | 🔍 | Boards, Pipelines |
 
 ### Communication & Collaboration
 | ID | Platform | Status | Integration Type |
 |----|----------|--------|------------------|
-| INT-101 | Slack | 📋 | Notifications, approvals |
+| INT-101 | Slack | ✅ | Finding summaries to incoming webhooks (`integrations/notifications.py`, HTTPS-only) |
 | INT-102 | Microsoft Teams | 📋 | Notifications, approvals |
 | INT-103 | Discord | 🔍 | Notifications |
 | INT-104 | Email (SMTP) | 📋 | Reports, alerts |
@@ -442,6 +442,7 @@ Based on current progress (Phase 9 active), the following capabilities are highe
 
 | Date | Phase | Changes |
 |------|-------|---------|
+| Current Session | Phase 7 (cont.) | ✅ INT-004 Jira issue creation and INT-101 Slack finding summaries via shared HTTPS-only JSON transport (`integrations/notifications.py`) |
 | Current Session | Phase 3 (cont.) | ✅ VAL-002 exploit validation runner: approved PoC commands execute only inside the Docker sandbox, fail closed on missing approval/scope/sandbox |
 | Current Session | Phase 8 (cont.) | ✅ Full-repository strict MyPy: `make typecheck` now runs `mypy --strict networkforgeai` (44 modules); CI installs `.[llm]` extras for adapter stubs |
 | Current Session | Phase 9 (cont.) | ✅ Validation engine (VAL-001/003/004/005), compliance mappings (CMP-001..003), HTML reports (RPT-006), CLI approval prompts + status display (CLI-003/004); strict MyPy gate extended to dashboard, CLI UI, validation, and compliance modules |
