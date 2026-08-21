@@ -14,6 +14,7 @@ from datetime import datetime
 from enum import Enum
 
 from .approval_gateway import ApprovalGateway, RiskLevel, ApprovalStatus
+from .message_bus import AgentMessage, MessageBus
 
 
 class AgentStatus(Enum):
@@ -55,11 +56,17 @@ class BaseAgent(ABC):
         agent_id: Optional[str] = None,
         name: Optional[str] = None,
         approval_gateway: Optional[ApprovalGateway] = None,
+        message_bus: Optional[MessageBus] = None,
+        model_adapter: Any = None,
+        tool_registry: Optional[Dict[str, Any]] = None,
         **kwargs
     ):
         self.id = agent_id or str(uuid.uuid4())
         self.name = name or self.__class__.__name__
         self.approval_gateway = approval_gateway
+        self.message_bus = message_bus
+        self.model_adapter = model_adapter
+        self.tool_registry = tool_registry or {}
         self.status = AgentStatus.IDLE
         self.current_task: Optional[str] = None
         self.findings: List[Dict[str, Any]] = []
@@ -156,9 +163,13 @@ class BaseAgent(ABC):
         
         Used for inter-agent coordination and discovery sharing.
         """
-        # This would integrate with a central message bus in production
-        # For now, just log the intent
-        print(f"[{self.name}] -> [{recipient_id}]: {message}")
+        if self.message_bus is None:
+            raise RuntimeError("Message bus not configured")
+        delivered = await self.message_bus.send(
+            AgentMessage(sender_id=self.id, recipient_id=recipient_id, payload=message)
+        )
+        if not delivered:
+            raise ValueError(f"Recipient agent is not registered: {recipient_id}")
     
     async def receive_message(self, timeout: float = 0) -> Optional[Dict[str, Any]]:
         """
@@ -168,8 +179,14 @@ class BaseAgent(ABC):
         """
         try:
             if timeout > 0:
+                if self.message_bus is not None:
+                    message = await self.message_bus.receive(self.id, timeout)
+                    return message.payload if message else None
                 return await asyncio.wait_for(self.mailbox.get(), timeout=timeout)
             else:
+                if self.message_bus is not None:
+                    message = await self.message_bus.receive(self.id)
+                    return message.payload if message else None
                 return self.mailbox.get_nowait()
         except (asyncio.TimeoutError, asyncio.QueueEmpty):
             return None
@@ -191,6 +208,29 @@ class BaseAgent(ABC):
     def should_stop(self) -> bool:
         """Check if stop has been requested."""
         return self._stop_requested
+
+    async def ask_model(self, messages: List[Any], **kwargs):
+        """Call the configured model adapter, if one is attached."""
+        if self.model_adapter is None:
+            raise RuntimeError("No model adapter configured for this agent")
+        return await self.model_adapter.chat(messages, **kwargs)
+
+    async def analyze_context(self, prompt: str, context: Dict[str, Any]) -> Any:
+        """Run a model-backed analysis with retry and bounded context when configured."""
+        from ..models.base_adapter import Message
+        messages = [Message(role="user", content=f"{prompt}\nContext: {context}")]
+        if hasattr(self.model_adapter, "prepare_context"):
+            messages = self.model_adapter.prepare_context(messages)
+        if hasattr(self.model_adapter, "chat_with_retry"):
+            response = await self.model_adapter.chat_with_retry(messages)
+        else:
+            response = await self.ask_model(messages)
+        return response
+
+    def get_tool(self, name: str) -> Any:
+        if name not in self.tool_registry:
+            raise KeyError(f"Tool is not registered for agent: {name}")
+        return self.tool_registry[name]
     
     def _summarize_context(self) -> str:
         """Create a summary of current context for state persistence."""

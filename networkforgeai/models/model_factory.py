@@ -254,6 +254,22 @@ class ModelFactory:
         raise ValueError(
             f"All providers failed. Last error: {last_error}"
         )
+
+    @classmethod
+    async def create_with_fallback_async(
+        cls, providers: list[str], model_names: Optional[Dict[str, str]] = None, **kwargs
+    ) -> BaseAdapter:
+        """Async-safe fallback creation for applications already inside an event loop."""
+        model_names = model_names or {}
+        last_error = None
+        for provider in providers:
+            try:
+                adapter = cls.create(provider, model_names.get(provider, "gpt-4"), **kwargs)
+                if await adapter.connect():
+                    return adapter
+            except Exception as exc:
+                last_error = exc
+        raise ValueError(f"All providers failed. Last error: {last_error}")
     
     @staticmethod
     def _parse_provider(provider: str) -> ModelProvider:

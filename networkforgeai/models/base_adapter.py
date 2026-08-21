@@ -14,6 +14,7 @@ from typing import Optional, Dict, Any, List, AsyncIterator, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from .retry import retry_async
 
 
 class ModelProvider(Enum):
@@ -260,6 +261,25 @@ class BaseAdapter(ABC):
             return response is not None and len(response.content) > 0
         except Exception:
             return False
+
+    async def chat_with_retry(self, messages: List[Message], *, attempts: int = 3, **kwargs) -> ModelResponse:
+        """Chat with bounded exponential backoff for transient provider failures."""
+        return await retry_async(lambda: self.chat(messages, **kwargs), attempts=attempts)
+
+    def prepare_context(self, messages: List[Message], max_tokens: int | None = None) -> List[Message]:
+        """Apply the shared context policy while preserving system and recent messages."""
+        limit = max_tokens or self.config.max_tokens
+        total = 0
+        selected: list[Message] = []
+        for message in reversed(messages):
+            estimate = self.estimate_tokens(message.content)
+            if total + estimate > limit and selected:
+                continue
+            selected.append(message)
+            total += estimate
+        selected.reverse()
+        systems = [message for message in messages if message.role == "system"]
+        return systems + [message for message in selected if message.role != "system"]
     
     @property
     def is_connected(self) -> bool:

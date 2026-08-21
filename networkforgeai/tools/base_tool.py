@@ -10,6 +10,7 @@ from datetime import datetime
 
 from ..core.approval_gateway import ApprovalGateway, ApprovalStatus, RiskLevel
 from ..core.scope import ScopePolicy
+from ..sandbox.runner import SandboxRunner
 
 logger = logging.getLogger(__name__)
 
@@ -189,13 +190,11 @@ class BaseTool(ABC):
         start_time = datetime.now()
         
         try:
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                shell=False
-            )
+            if self.sandbox_mode:
+                result = SandboxRunner().run(command, timeout=timeout)
+            else:
+                result = subprocess.run(command, capture_output=True, text=True,
+                                        timeout=timeout, shell=False)
             
             end_time = datetime.now()
             

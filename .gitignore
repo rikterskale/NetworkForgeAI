@@ -13,6 +13,7 @@ venv/
 .env.local
 .env.*
 .venv.bak/
+.python-versions/
 pip-log.txt
 pip-delete-this-directory.txt
 .tox/

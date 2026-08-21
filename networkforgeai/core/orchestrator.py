@@ -16,6 +16,9 @@ from enum import Enum
 
 from .approval_gateway import ApprovalGateway, RiskLevel
 from .base_agent import BaseAgent, AgentStatus, AgentState
+from .knowledge_base import KnowledgeBase
+from .message_bus import MessageBus
+from .task_queue import AgentTask, TaskQueue
 from ..reporting import to_csv, to_json, to_sarif
 
 
@@ -73,6 +76,9 @@ class ScanOrchestrator:
         self.scan_id = str(uuid.uuid4())
         self.status = ScanStatus.PENDING
         self.agents: Dict[str, BaseAgent] = {}
+        self.message_bus = MessageBus()
+        self.task_queue = TaskQueue()
+        self.knowledge_base = KnowledgeBase()
         self.approval_gateway = ApprovalGateway(
             mode=config.approval_mode,
             audit_log_path=Path(config.save_dir) / "approval_audit.jsonl",
@@ -97,12 +103,22 @@ class ScanOrchestrator:
     def register_agent(self, agent: BaseAgent):
         """Register an agent with the orchestrator."""
         agent.approval_gateway = self.approval_gateway
+        agent.message_bus = self.message_bus
         self.agents[agent.id] = agent
+        asyncio.create_task(self.message_bus.register(agent.id)) if self._loop_running() else None
         
     def unregister_agent(self, agent_id: str):
         """Remove an agent from the orchestrator."""
         if agent_id in self.agents:
             del self.agents[agent_id]
+
+    @staticmethod
+    def _loop_running() -> bool:
+        try:
+            asyncio.get_running_loop()
+            return True
+        except RuntimeError:
+            return False
     
     async def start(self):
         """Start the penetration test scan."""
@@ -110,6 +126,8 @@ class ScanOrchestrator:
             raise RuntimeError(f"Cannot start scan from status {self.status.value}")
         self.status = ScanStatus.RUNNING
         self.started_at = datetime.utcnow()
+        for agent in self.agents.values():
+            await self.message_bus.register(agent.id)
         
         # Create save directory
         self.save_dir.mkdir(parents=True, exist_ok=True)
@@ -147,6 +165,9 @@ class ScanOrchestrator:
             await self.start()
             
         try:
+            if self.approval_gateway.emergency_stop_active:
+                self.status = ScanStatus.CANCELLED
+                return
             # Phase 1: Reconnaissance
             recon_agents = [a for a in self.agents.values() 
                           if "reconnaissance" in a.get_capabilities()]
@@ -195,29 +216,37 @@ class ScanOrchestrator:
             if agent.should_stop():
                 continue
                 
+            queued_task = AgentTask(name=phase_name, required_capability=phase_name,
+                                    context=self.shared_context, assigned_agent=agent.id)
+            await self.task_queue.put(queued_task)
             task = asyncio.create_task(
                 agent.execute(phase_name, self.shared_context)
             )
-            tasks.append(task)
+            tasks.append((queued_task, task))
             
         if tasks:
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+            results = await asyncio.gather(*(task for _, task in tasks), return_exceptions=True)
             
             # Process results and update shared context
-            for result in results:
+            for (queued_task, _), result in zip(tasks, results):
                 if isinstance(result, Exception):
+                    self.task_queue.complete(queued_task, str(result))
                     print(f"[Orchestrator] Agent execution error: {result}")
                     continue
+
+                self.task_queue.complete(queued_task)
                     
                 if isinstance(result, dict):
                     # Merge findings
                     new_findings = result.get("findings", [])
                     for finding in new_findings:
                         self.findings.append(finding)
+                    self.shared_context["findings"] = list(self.findings)
                         
                     # Update shared context
                     if "context_updates" in result:
                         self.shared_context.update(result["context_updates"])
+                        await self.knowledge_base.update(result["context_updates"])
     
     def add_finding(self, finding: Dict[str, Any]):
         """Add a finding to the global collection."""
@@ -254,6 +283,7 @@ class ScanOrchestrator:
     async def stop(self):
         """Stop the scan gracefully."""
         self._stop_requested = True
+        await self.approval_gateway.emergency_stop("scan stopped by operator")
         for agent in self.agents.values():
             agent.stop()
             await agent.cleanup()
@@ -279,6 +309,9 @@ class ScanOrchestrator:
             "agent_count": len(self.agents),
             "finding_count": len(self.findings),
             "approval_log": self.approval_log
+            ,"knowledge_base": await self.knowledge_base.snapshot()
+            ,"task_queue": self.task_queue.snapshot()
+            ,"agent_states": [self._agent_state_dict(agent) for agent in self.agents.values()]
         }
         
         state_file = self.save_dir / "scan_state.json"
@@ -356,6 +389,17 @@ class ScanOrchestrator:
             ])
         
         return "\n".join(lines)
+
+    @staticmethod
+    def _agent_state_dict(agent: BaseAgent) -> Dict[str, Any]:
+        state = agent.to_state()
+        return {
+            "id": state.id, "name": state.name, "status": state.status.value,
+            "current_task": state.current_task, "findings": state.findings,
+            "created_at": state.created_at.isoformat(),
+            "last_active": state.last_active.isoformat(),
+            "context_summary": state.context_summary,
+        }
     
     @classmethod
     async def from_state(cls, scan_id: str, save_base_dir: str = "./scans") -> "ScanOrchestrator":
@@ -385,6 +429,7 @@ class ScanOrchestrator:
         orchestrator.completed_at = datetime.fromisoformat(state["completed_at"]) if state["completed_at"] else None
         orchestrator.shared_context = state["shared_context"]
         orchestrator.approval_log = state["approval_log"]
+        await orchestrator.knowledge_base.restore(state.get("knowledge_base", {}))
 
         findings_file = save_dir / "findings.json"
         if findings_file.exists():

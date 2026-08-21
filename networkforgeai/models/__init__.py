@@ -61,6 +61,7 @@ from .ai_capabilities import (
     ERROR_RECOVERY_PROMPT,
     RATE_LIMIT_RETRY_PROMPT,
 )
+from .retry import retry_async
 
 # Lazy imports for specific adapters
 def get_openai_adapter():
@@ -108,4 +109,5 @@ __all__ = [
     "summarize_conversation",
     "ERROR_RECOVERY_PROMPT",
     "RATE_LIMIT_RETRY_PROMPT",
+    "retry_async",
 ]

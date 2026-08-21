@@ -23,3 +23,11 @@ def test_high_risk_tool_cannot_execute_without_gateway():
     tool.scope_policy = ScopePolicy(["example.com"])
     with pytest.raises(PermissionError):
         tool.execute("example.com", {"username": "user", "password": "pass"})
+
+
+def test_sandbox_execution_fails_closed_without_configured_image():
+    tool = NmapTool()
+    tool.scope_policy = ScopePolicy(["example.com"])
+    result = tool.execute("example.com")
+    assert result.exit_code == -1
+    assert "SANDBOX_IMAGE" in result.stderr

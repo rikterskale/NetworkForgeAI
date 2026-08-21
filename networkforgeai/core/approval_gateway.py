@@ -20,6 +20,7 @@ class ApprovalStatus(Enum):
     APPROVED = "approved"
     REJECTED = "rejected"
     EXPIRED = "expired"
+    CANCELLED = "cancelled"
 
 
 class RiskLevel(Enum):
@@ -103,6 +104,8 @@ class ApprovalGateway:
         self.callbacks: Dict[str, Callable[[ApprovalRequest], Awaitable[None]]] = {}
         self._lock = asyncio.Lock()
         self.audit_log_path = Path(audit_log_path) if audit_log_path else None
+        self._emergency_stop = False
+        self._emergency_stop_reason: Optional[str] = None
         
     async def request_approval(
         self,
@@ -129,6 +132,8 @@ class ApprovalGateway:
         Returns:
             ApprovalRequest object with status updated after approval/rejection
         """
+        if self._emergency_stop:
+            raise PermissionError(f"Emergency stop is active: {self._emergency_stop_reason or 'unspecified'}")
         if isinstance(risk_level, str):
             risk_level = RiskLevel(risk_level.lower())
 
@@ -241,6 +246,10 @@ class ApprovalGateway:
                     raise ValueError(f"Request {request_id} not found")
                     
                 request = self.requests[request_id]
+
+                if self._emergency_stop and request.status == ApprovalStatus.PENDING:
+                    request.status = ApprovalStatus.CANCELLED
+                    return request
                 
                 # Check expiration
                 if request.expires_at and datetime.utcnow() > request.expires_at:
@@ -281,6 +290,26 @@ class ApprovalGateway:
         ]
         for rid in expired:
             del self.requests[rid]
+
+    async def emergency_stop(self, reason: str = "operator requested stop") -> None:
+        """Cancel pending approvals and block new actions until reset."""
+        async with self._lock:
+            self._emergency_stop = True
+            self._emergency_stop_reason = reason
+            pending = [request for request in self.requests.values()
+                       if request.status == ApprovalStatus.PENDING]
+            for request in pending:
+                request.status = ApprovalStatus.CANCELLED
+                self._audit(request)
+
+    async def reset_emergency_stop(self) -> None:
+        async with self._lock:
+            self._emergency_stop = False
+            self._emergency_stop_reason = None
+
+    @property
+    def emergency_stop_active(self) -> bool:
+        return self._emergency_stop
 
     def _audit(self, request: ApprovalRequest) -> None:
         if not self.audit_log_path:
