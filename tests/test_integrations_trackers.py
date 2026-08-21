@@ -120,6 +120,22 @@ def test_webhook_ticket_client(capture):
     assert payload["severity"] == "high"
 
 
+def test_bitbucket_issue_creator(capture):
+    from networkforgeai.integrations import BitbucketIssueCreator
+
+    creator = BitbucketIssueCreator(
+        email="ops@example.com", api_token="app-password", workspace="acme", repository="findings"
+    )
+    assert creator.create_issue_for_finding(_FINDING) == 201
+    endpoint, headers, payload = capture[0]
+    assert endpoint == "https://api.bitbucket.org/2.0/repositories/acme/findings/issues"
+    assert headers["Authorization"].startswith("Basic ")
+    assert payload["priority"] == "critical"  # high -> critical
+    assert payload["kind"] == "bug"
+    with pytest.raises(ValueError):
+        BitbucketIssueCreator(email="e", api_token="", workspace="w", repository="r")
+
+
 def test_email_settings_validation():
     with pytest.raises(ValueError):
         EmailSettings(smtp_host="")

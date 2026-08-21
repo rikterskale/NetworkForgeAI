@@ -216,6 +216,7 @@ jobs:
 - [Example Scan Scenarios](docs/scenarios.md)
 - [Deployment Guide](docs/deployment.md)
 - [Agent System](docs/agents.md)
+- [GUI User Manual](docs/gui-user-manual.md)
 - [Approval Workflow](docs/approval-system.md)
 - [Reporting Guide](docs/reporting.md)
 - [CI/CD Integration](docs/ci-cd.md)

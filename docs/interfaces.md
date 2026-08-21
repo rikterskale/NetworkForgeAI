@@ -21,6 +21,9 @@ networkforgeai --version
 Report reads are restricted to the configured output directory. A path that
 attempts to escape that directory is rejected.
 
+A step-by-step operator guide for the console lives in the
+[GUI User Manual](gui-user-manual.md).
+
 ## Dashboard API
 
 The dashboard requires `Authorization: Bearer <token>` for all endpoints except

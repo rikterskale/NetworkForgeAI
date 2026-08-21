@@ -10,6 +10,7 @@ from .notifications import (
 )
 from .siem import SplunkHecForwarder, cef_encode, correlate_findings
 from .trackers import (
+    BitbucketIssueCreator,
     GitHubIssueCreator,
     GitLabIssueCreator,
     LinearIssueCreator,
@@ -27,6 +28,7 @@ __all__ = [
     "WebhookEvent",
     "WebhookNotifier",
     "summarize_findings",
+    "BitbucketIssueCreator",
     "GitHubIssueCreator",
     "GitLabIssueCreator",
     "LinearIssueCreator",

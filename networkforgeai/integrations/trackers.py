@@ -8,12 +8,14 @@ logged or embedded in payloads.
 
 from __future__ import annotations
 
+import base64
 from typing import Any
 
 from ..reporting.models import prepare_findings
 from .notifications import HttpsJsonClient
 
 __all__ = [
+    "BitbucketIssueCreator",
     "GitHubIssueCreator",
     "GitLabIssueCreator",
     "LinearIssueCreator",
@@ -22,6 +24,14 @@ __all__ = [
 ]
 
 _DEFAULT_SEVERITIES = {"critical", "high"}
+
+_BITBUCKET_PRIORITY = {
+    "critical": "blocker",
+    "high": "critical",
+    "medium": "major",
+    "low": "minor",
+    "informational": "trivial",
+}
 
 
 def finding_to_issue_fields(finding: dict[str, Any]) -> dict[str, str]:
@@ -121,6 +131,41 @@ class GitLabIssueCreator:
             "title": fields["title"],
             "description": fields["body"],
             "labels": ",".join([*self.labels, fields["severity"]]),
+        }
+        return self.client.post(payload)
+
+
+class BitbucketIssueCreator:
+    """Create Bitbucket Cloud issues for notable findings via REST (INT-003)."""
+
+    def __init__(
+        self,
+        email: str,
+        api_token: str,
+        workspace: str,
+        repository: str,
+        base_url: str = "https://api.bitbucket.org",
+        timeout: float = 10.0,
+    ):
+        if not api_token or api_token.strip() == "":
+            raise ValueError("A non-empty Bitbucket app password is required")
+        if not base_url.startswith("https://"):
+            raise ValueError("Bitbucket base_url must use HTTPS")
+        endpoint = f"{base_url.rstrip('/')}/2.0/repositories/{workspace}/{repository}/issues"
+        credentials = base64.b64encode(f"{email}:{api_token}".encode()).decode()
+        self.client = HttpsJsonClient(
+            endpoint,
+            headers={"Authorization": f"Basic {credentials}"},
+            timeout=timeout,
+        )
+
+    def create_issue_for_finding(self, finding: dict[str, Any]) -> int:
+        fields = finding_to_issue_fields(finding)
+        payload = {
+            "title": fields["title"],
+            "content": {"raw": fields["body"]},
+            "kind": "bug",
+            "priority": _BITBUCKET_PRIORITY.get(fields["severity"], "major"),
         }
         return self.client.post(payload)
 

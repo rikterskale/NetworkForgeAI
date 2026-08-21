@@ -264,7 +264,7 @@
 |----|----------|--------|------------------|
 | INT-001 | GitHub | ✅ | Issues via REST (`GitHubIssueCreator`); Actions gate already in CI |
 | INT-002 | GitLab | ✅ | Issues via REST (`GitLabIssueCreator`); CI parity template shipped |
-| INT-003 | Bitbucket | 📋 | Pipelines, Issues |
+| INT-003 | Bitbucket | ✅ | Issues via REST (`BitbucketIssueCreator`); Pipelines can run the CI parity templates |
 | INT-004 | Jira | ✅ | Issue creation from findings via REST (`integrations/notifications.py`, HTTPS-only) |
 | INT-005 | Linear | ✅ | Issue creation via GraphQL (`LinearIssueCreator`) |
 | INT-006 | Azure DevOps | 🔍 | Boards, Pipelines |
@@ -306,7 +306,7 @@
 | TST-003 | Agent behavior tests | ✅ | Mock approvals and model-independent paths |
 | TST-004 | Safety mechanism tests | ✅ | Approval bypass prevention and fail-closed checks |
 | TST-005 | Performance tests | ✅ | CPU-only budget tests for hot paths (`tests/test_performance.py`) — summarize, report generation, normalization, concurrent approvals |
-| TST-006 | Security tests | 🔍 | Pen-test the pentester |
+| TST-006 | Security tests | ✅ | Adversarial suite `tests/test_safety_adversarial.py`: scope evasion, approval fail-closed, RBAC, path confinement |
 
 ### Quality Gates
 | ID | Gate | Status | Criteria |
@@ -342,7 +342,7 @@ installed in CI so optional provider adapters typecheck against real stubs.
 | DOC-002 | Installation guide | ✅ | `docs/installation.md` (incl. contributor `[llm]` extra) |
 | DOC-003 | Configuration reference | ✅ | `docs/configuration.md` |
 | DOC-004 | CLI command reference | ✅ | `docs/cli-reference.md` (verified against current CLI flags) |
-| DOC-005 | GUI user manual | 📋 | Blocked until GUI ships |
+| DOC-005 | GUI user manual | ✅ | `docs/gui-user-manual.md` — tabs, auth, safety model; linked from README and interface guide |
 | DOC-006 | Agent playbook | ✅ | `docs/agents.md` |
 | DOC-007 | Troubleshooting guide | ✅ | `docs/troubleshooting.md` |
 | DOC-008 | FAQ | ✅ | `docs/faq.md` |
@@ -391,7 +391,7 @@ installed in CI so optional provider adapters typecheck against real stubs.
 | ADV-102 | Vulnerability correlation | 🔍 | ML-based pattern matching |
 | ADV-103 | Threat intelligence integration | 🔍 | External feeds |
 | ADV-104 | Predictive risk scoring | 🔍 | Historical data analysis |
-| ADV-105 | Automated remediation validation | 📋 | Re-testing after fix |
+| ADV-105 | Automated remediation validation | ✅ | Approval-gated re-test planner `core/revalidation.build_retest_plan` mapping findings to inventory tools |
 
 ### Enterprise Features
 | ID | Feature | Status | Target |
