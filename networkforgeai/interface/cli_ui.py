@@ -21,7 +21,10 @@ class ApprovalPrompt:
     """
 
     def __init__(
-        self, gateway: ApprovalGateway, stream: IO[str] | None = None, interactive: bool | None = None
+        self,
+        gateway: ApprovalGateway,
+        stream: IO[str] | None = None,
+        interactive: bool | None = None,
     ):
         self.gateway = gateway
         self.stream = stream or sys.stdout
