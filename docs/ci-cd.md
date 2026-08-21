@@ -24,12 +24,14 @@ make ci
 ```
 
 The readiness gate does not perform network scans or require LLM credentials. It
-verifies compilation, CLI help/version/tool inventory, safe dry-run behavior,
+verifies compilation, beginner-facing CLI safety controls, CLI help/version/tool
+inventory, safe dry-run behavior, rejection of missing or out-of-scope targets,
 report path containment, configuration validation, documentation links, report
 generation, authenticated read-only dashboard behavior, scope denial, approval
-fail-closed behavior, secret-free example configuration, and deployment
-configuration. Optional checks are explicitly reported as skipped when their
-runtime dependency is unavailable; CI installs the full runtime set.
+fail-closed behavior, safe example configuration, and deployment configuration.
+CI also runs `pip check` to catch broken installed dependencies. Optional checks
+are explicitly reported as skipped when their runtime dependency is unavailable;
+CI installs the full runtime set.
 
 For deployment policy enforcement, run the findings gate against a JSON or SARIF
 report:

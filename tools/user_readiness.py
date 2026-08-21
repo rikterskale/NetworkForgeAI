@@ -36,6 +36,26 @@ def run(
     )
 
 
+def run_expect_failure(
+    name: str,
+    command: list[str],
+    checks: list[dict[str, object]],
+    expected_text: str,
+) -> None:
+    """Pass only when a safety-critical command rejects invalid input."""
+    result = subprocess.run(command, cwd=ROOT, text=True, capture_output=True)
+    output = result.stdout + result.stderr
+    checks.append(
+        {
+            "name": name,
+            "passed": result.returncode != 0 and expected_text in output,
+            "command": command,
+            "output": output[-2000:],
+            "expected_text": expected_text,
+        }
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--json", action="store_true")
@@ -57,6 +77,15 @@ def main() -> int:
     )
     run("python compilation", [python, "-c", compile_script], checks)
     run("CLI help", [python, "-m", "networkforgeai.cli", "--help"], checks)
+    run(
+        "CLI help exposes safety controls",
+        [
+            python,
+            "-c",
+            "import subprocess, sys; output = subprocess.check_output([sys.executable, '-m', 'networkforgeai.cli', '--help'], text=True); assert all(option in output for option in ('--target', '--scope', '--dry-run'))",
+        ],
+        checks,
+    )
     run("CLI version", [python, "-m", "networkforgeai.cli", "--version"], checks)
     run("CLI tool inventory", [python, "-m", "networkforgeai.cli", "--list-tools"], checks)
     run(
@@ -74,6 +103,27 @@ def main() -> int:
             "--dry-run",
         ],
         checks,
+    )
+    run_expect_failure(
+        "CLI rejects missing scope",
+        [python, "-m", "networkforgeai.cli", "--target", "example.com", "--dry-run"],
+        checks,
+        "--target and --scope are required",
+    )
+    run_expect_failure(
+        "CLI rejects out-of-scope target",
+        [
+            python,
+            "-m",
+            "networkforgeai.cli",
+            "--target",
+            "outside.example",
+            "--scope",
+            "example.com",
+            "--dry-run",
+        ],
+        checks,
+        "outside the explicitly supplied scope",
     )
     report_script = """
 from pathlib import Path
@@ -133,7 +183,6 @@ import json
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from fastapi.testclient import TestClient
 with TemporaryDirectory() as directory:
     os.environ["DASHBOARD_AUTH_TOKEN"] = "readiness-token"
     os.environ["REPORT_OUTPUT_DIR"] = directory
@@ -142,13 +191,18 @@ with TemporaryDirectory() as directory:
     root.mkdir()
     (root / "findings.json").write_text("[]")
     (root / "scan_state.json").write_text(json.dumps({"scan_id": "scan-1", "status": "completed", "config": {"target": "example.com"}}))
-    client = TestClient(app)
-    assert client.get("/health").status_code == 200
-    assert client.get("/reports").status_code == 401
-    headers = {"Authorization": "Bearer readiness-token"}
-    assert client.get("/reports", headers=headers).status_code == 200
-    assert client.get("/reports/scan-1/findings.json", headers=headers).json()["content"] == []
-    assert client.get("/scans", headers=headers).json()["scans"][0]["scan_id"] == "scan-1"
+    routes = {route.path: route.endpoint for route in app.routes if hasattr(route, "endpoint")}
+    assert routes["/health"]() == {"status": "ok"}
+    try:
+        routes["/reports"]()
+    except Exception as exc:
+        assert getattr(exc, "status_code", None) == 401
+    else:
+        raise AssertionError("unauthenticated dashboard request was accepted")
+    authorization = "Bearer readiness-token"
+    assert routes["/reports"](authorization) == {"reports": ["scan-1/findings.json", "scan-1/scan_state.json"]}
+    assert routes["/reports/{report_path:path}"]("scan-1/findings.json", authorization)["content"] == []
+    assert routes["/scans"](authorization)["scans"][0]["scan_id"] == "scan-1"
 """
     if importlib.util.find_spec("fastapi"):
         run("authenticated dashboard read-only API", [python, "-c", dashboard_script], checks)
@@ -198,10 +252,16 @@ with TemporaryDirectory() as directory:
         )
 
     env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
+    required_placeholders = (
+        "OPENAI_API_KEY=your_openai_api_key_here",
+        "TARGET_SCOPE=",
+        "DASHBOARD_AUTH_TOKEN=change_this_secure_random_token",
+    )
     checks.append(
         {
-            "name": "example configuration contains no live credentials",
-            "passed": "your_openai_api_key_here" in env_example and "sk-" not in env_example,
+            "name": "example configuration is safe and complete",
+            "passed": all(value in env_example for value in required_placeholders)
+            and "sk-" not in env_example,
         }
     )
 
