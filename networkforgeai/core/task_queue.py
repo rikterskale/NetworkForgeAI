@@ -37,6 +37,7 @@ class TaskQueue:
     async def put(self, task: AgentTask) -> None:
         if not task.id:
             import uuid
+
             task.id = str(uuid.uuid4())
         self._tasks[task.id] = task
         await self._queue.put(task)
@@ -51,6 +52,11 @@ class TaskQueue:
         task.error = error
 
     def snapshot(self) -> list[dict[str, Any]]:
-        return [{**task.__dict__, "status": task.status.value,
-                 "created_at": task.created_at.isoformat()} for task in self._tasks.values()]
-
+        return [
+            {
+                **task.__dict__,
+                "status": task.status.value,
+                "created_at": task.created_at.isoformat(),
+            }
+            for task in self._tasks.values()
+        ]

@@ -1,12 +1,12 @@
 """Base tool abstraction for offensive security tools."""
 
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
-from enum import Enum
 import logging
 import subprocess
+from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from ..core.approval_gateway import ApprovalGateway, ApprovalStatus, RiskLevel
 from ..core.scope import ScopePolicy
@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class ToolRiskLevel(Enum):
     """Risk levels for tool operations."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -25,6 +26,7 @@ class ToolRiskLevel(Enum):
 
 class ToolCategory(Enum):
     """Categories of offensive security tools."""
+
     NETWORK_SCAN = "network_scan"
     WEB_SCAN = "web_scan"
     VULN_SCAN = "vulnerability_scan"
@@ -41,6 +43,7 @@ class ToolCategory(Enum):
 @dataclass
 class ToolResult:
     """Standardized result from tool execution."""
+
     tool_name: str
     command: str
     exit_code: int
@@ -52,17 +55,17 @@ class ToolResult:
     category: ToolCategory
     findings: List[Dict[str, Any]] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
-    
+
     @property
     def duration(self) -> float:
         """Calculate execution duration in seconds."""
         return (self.end_time - self.start_time).total_seconds()
-    
+
     @property
     def success(self) -> bool:
         """Check if tool executed successfully."""
         return self.exit_code == 0
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert result to dictionary."""
         return {
@@ -78,25 +81,29 @@ class ToolResult:
             "category": self.category.value,
             "findings": self.findings,
             "metadata": self.metadata,
-            "success": self.success
+            "success": self.success,
         }
 
 
 class BaseTool(ABC):
     """Abstract base class for all offensive security tools."""
-    
+
     name: str = "base_tool"
     description: str = "Base tool class"
     category: ToolCategory = ToolCategory.REPORTING
     risk_level: ToolRiskLevel = ToolRiskLevel.LOW
     requires_approval: bool = False
-    
-    def __init__(self, sandbox_mode: bool = True, dry_run: bool = False,
-                 approval_gateway: Optional[ApprovalGateway] = None,
-                 scope_policy: Optional[ScopePolicy] = None):
+
+    def __init__(
+        self,
+        sandbox_mode: bool = True,
+        dry_run: bool = False,
+        approval_gateway: Optional[ApprovalGateway] = None,
+        scope_policy: Optional[ScopePolicy] = None,
+    ):
         """
         Initialize tool.
-        
+
         Args:
             sandbox_mode: Run in isolated sandbox environment
             dry_run: Don't actually execute, just show what would run
@@ -106,28 +113,28 @@ class BaseTool(ABC):
         self.approval_gateway = approval_gateway
         self.scope_policy = scope_policy
         self.logger = logging.getLogger(f"{__name__}.{self.name}")
-    
+
     @abstractmethod
     def build_command(self, target: str, options: Optional[Dict[str, Any]] = None) -> List[str]:
         """
         Build the command to execute the tool.
-        
+
         Args:
             target: Target host/domain/URL
             options: Additional tool-specific options
-            
+
         Returns:
             List of command arguments
         """
         pass
-    
+
     def validate_target(self, target: str) -> bool:
         """
         Validate that target is within scope.
-        
+
         Args:
             target: Target to validate
-            
+
         Returns:
             True if target is valid and in scope
         """
@@ -139,22 +146,22 @@ class BaseTool(ABC):
         return self.scope_policy is not None
 
     def _approval_required(self) -> bool:
-        return self.requires_approval or self.risk_level in {ToolRiskLevel.HIGH, ToolRiskLevel.CRITICAL}
-    
+        return self.requires_approval or self.risk_level in {
+            ToolRiskLevel.HIGH,
+            ToolRiskLevel.CRITICAL,
+        }
+
     def execute(
-        self, 
-        target: str, 
-        options: Optional[Dict[str, Any]] = None,
-        timeout: int = 300
+        self, target: str, options: Optional[Dict[str, Any]] = None, timeout: int = 300
     ) -> ToolResult:
         """
         Execute the tool against a target.
-        
+
         Args:
             target: Target host/domain/URL
             options: Additional tool-specific options
             timeout: Maximum execution time in seconds
-            
+
         Returns:
             ToolResult with execution details and findings
         """
@@ -166,13 +173,15 @@ class BaseTool(ABC):
                 raise PermissionError(f"{self.name} requires an approval gateway")
             request = self._run_approval_request(target, timeout)
             if request.status != ApprovalStatus.APPROVED:
-                raise PermissionError(f"{self.name} execution was not approved: {request.status.value}")
-        
+                raise PermissionError(
+                    f"{self.name} execution was not approved: {request.status.value}"
+                )
+
         command = self.build_command(target, options)
         command_str = " ".join(command)
-        
+
         self.logger.info(f"Executing {self.name}: {command_str}")
-        
+
         if self.dry_run:
             self.logger.info(f"[DRY RUN] Would execute: {command_str}")
             return ToolResult(
@@ -184,20 +193,21 @@ class BaseTool(ABC):
                 start_time=datetime.now(),
                 end_time=datetime.now(),
                 risk_level=self.risk_level,
-                category=self.category
+                category=self.category,
             )
-        
+
         start_time = datetime.now()
-        
+
         try:
             if self.sandbox_mode:
                 result = SandboxRunner().run(command, timeout=timeout)
             else:
-                result = subprocess.run(command, capture_output=True, text=True,
-                                        timeout=timeout, shell=False)
-            
+                result = subprocess.run(
+                    command, capture_output=True, text=True, timeout=timeout, shell=False
+                )
+
             end_time = datetime.now()
-            
+
             tool_result = ToolResult(
                 tool_name=self.name,
                 command=command_str,
@@ -208,16 +218,19 @@ class BaseTool(ABC):
                 end_time=end_time,
                 risk_level=self.risk_level,
                 category=self.category,
-                findings=[self._sanitize_finding(finding) for finding in self.parse_findings(result.stdout, result.stderr)]
+                findings=[
+                    self._sanitize_finding(finding)
+                    for finding in self.parse_findings(result.stdout, result.stderr)
+                ],
             )
-            
+
             if result.returncode != 0:
                 self.logger.warning(f"{self.name} exited with code {result.returncode}")
                 if result.stderr:
                     self.logger.error(f"stderr: {result.stderr}")
-            
+
             return tool_result
-            
+
         except subprocess.TimeoutExpired:
             end_time = datetime.now()
             self.logger.error(f"{self.name} timed out after {timeout}s")
@@ -230,7 +243,7 @@ class BaseTool(ABC):
                 start_time=start_time,
                 end_time=end_time,
                 risk_level=self.risk_level,
-                category=self.category
+                category=self.category,
             )
 
         except Exception as e:
@@ -245,7 +258,7 @@ class BaseTool(ABC):
                 start_time=start_time,
                 end_time=end_time,
                 risk_level=self.risk_level,
-                category=self.category
+                category=self.category,
             )
 
     def _run_approval_request(self, target: str, timeout: int):
@@ -268,18 +281,20 @@ class BaseTool(ABC):
             asyncio.get_running_loop()
         except RuntimeError:
             return asyncio.run(request_and_wait())
-        raise RuntimeError("Synchronous tool execution cannot request approval inside a running event loop")
-    
+        raise RuntimeError(
+            "Synchronous tool execution cannot request approval inside a running event loop"
+        )
+
     def parse_findings(self, stdout: str, stderr: str) -> List[Dict[str, Any]]:
         """
         Parse tool output to extract findings.
-        
+
         Override this method in subclasses to implement custom parsing.
-        
+
         Args:
             stdout: Standard output from tool
             stderr: Standard error from tool
-            
+
         Returns:
             List of finding dictionaries
         """
@@ -296,7 +311,7 @@ class BaseTool(ABC):
             if key in sanitized and sanitized[key] is not None:
                 sanitized[key] = "[REDACTED]"
         return sanitized
-    
+
     def get_info(self) -> Dict[str, Any]:
         """Get tool information."""
         return {
@@ -306,5 +321,5 @@ class BaseTool(ABC):
             "risk_level": self.risk_level.value,
             "requires_approval": self.requires_approval,
             "sandbox_mode": self.sandbox_mode,
-            "dry_run": self.dry_run
+            "dry_run": self.dry_run,
         }

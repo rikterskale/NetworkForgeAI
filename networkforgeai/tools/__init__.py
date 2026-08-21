@@ -1,9 +1,9 @@
 """Offensive security tools integration package."""
 
-from .base_tool import BaseTool, ToolResult, ToolCategory, ToolRiskLevel
-from .nmap_tool import NmapTool, MasscanTool
+from .base_tool import BaseTool, ToolCategory, ToolResult, ToolRiskLevel
+from .nmap_tool import MasscanTool, NmapTool
+from .password_tools import CrackMapExecTool, HydraTool, ImpacketTools
 from .web_scanner_tools import NiktoTool, OWASPZAPTool, SQLMapTool
-from .password_tools import HydraTool, CrackMapExecTool, ImpacketTools
 
 __all__ = [
     # Base classes
@@ -11,16 +11,13 @@ __all__ = [
     "ToolResult",
     "ToolCategory",
     "ToolRiskLevel",
-    
     # Network scanning tools
     "NmapTool",
     "MasscanTool",
-    
     # Web application tools
     "NiktoTool",
     "OWASPZAPTool",
     "SQLMapTool",
-    
     # Password/credential tools
     "HydraTool",
     "CrackMapExecTool",
@@ -45,22 +42,22 @@ def get_available_tools() -> dict:
 def get_tool_by_name(name: str, **kwargs) -> BaseTool:
     """
     Get a tool instance by name.
-    
+
     Args:
         name: Tool name (e.g., 'nmap', 'nikto')
         **kwargs: Arguments to pass to tool constructor
-        
+
     Returns:
         Tool instance
-        
+
     Raises:
         ValueError: If tool name is not recognized
     """
     tools = get_available_tools()
-    
+
     if name not in tools:
         raise ValueError(f"Unknown tool: {name}. Available: {list(tools.keys())}")
-    
+
     approval_gateway = kwargs.pop("approval_gateway", None)
     scope_policy = kwargs.pop("scope_policy", None)
     tool = tools[name](**kwargs)

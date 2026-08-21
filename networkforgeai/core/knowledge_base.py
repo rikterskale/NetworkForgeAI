@@ -34,4 +34,3 @@ class KnowledgeBase:
     async def restore(self, values: dict[str, Any]) -> None:
         async with self._lock:
             self._data = deepcopy(values)
-

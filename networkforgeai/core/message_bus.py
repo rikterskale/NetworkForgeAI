@@ -48,4 +48,3 @@ class MessageBus:
             return mailbox.get_nowait()
         except (asyncio.TimeoutError, asyncio.QueueEmpty):
             return None
-

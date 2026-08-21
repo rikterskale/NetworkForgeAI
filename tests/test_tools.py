@@ -1,7 +1,7 @@
 import pytest
 
-from networkforgeai.tools import NmapTool, HydraTool
 from networkforgeai.core.scope import ScopePolicy
+from networkforgeai.tools import HydraTool, NmapTool
 
 
 def test_tool_requires_explicit_scope():

@@ -19,7 +19,11 @@ def create_app():
     expected_token = os.getenv("DASHBOARD_AUTH_TOKEN", "")
 
     def authorize(authorization: str | None) -> None:
-        if not expected_token or expected_token == "changeme" or authorization != f"Bearer {expected_token}":
+        if (
+            not expected_token
+            or expected_token == "changeme"
+            or authorization != f"Bearer {expected_token}"
+        ):
             raise HTTPException(status_code=401, detail="Unauthorized")
 
     @app.get("/health")

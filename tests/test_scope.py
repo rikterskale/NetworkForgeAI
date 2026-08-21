@@ -1,7 +1,8 @@
-from networkforgeai.core.scope import ScopePolicy
-from networkforgeai.core.message_bus import AgentMessage, MessageBus
-from networkforgeai.core.approval_gateway import ApprovalGateway, ApprovalStatus, RiskLevel
 import asyncio
+
+from networkforgeai.core.approval_gateway import ApprovalGateway, ApprovalStatus, RiskLevel
+from networkforgeai.core.message_bus import AgentMessage, MessageBus
+from networkforgeai.core.scope import ScopePolicy
 
 
 def test_scope_accepts_cidr_member_and_rejects_external_ip():
@@ -27,14 +28,18 @@ def test_message_bus_delivers_between_agents():
         assert await bus.send(AgentMessage("sender", "receiver", {"ok": True}))
         message = await bus.receive("receiver")
         assert message.payload == {"ok": True}
+
     asyncio.run(scenario())
 
 
 def test_emergency_stop_cancels_approval_requests():
     async def scenario():
         gateway = ApprovalGateway()
-        request = await gateway.request_approval("agent", "test", "test", "example.com", RiskLevel.HIGH)
+        request = await gateway.request_approval(
+            "agent", "test", "test", "example.com", RiskLevel.HIGH
+        )
         await gateway.emergency_stop("test")
         result = await gateway.wait_for_approval(request.id)
         assert result.status == ApprovalStatus.CANCELLED
+
     asyncio.run(scenario())

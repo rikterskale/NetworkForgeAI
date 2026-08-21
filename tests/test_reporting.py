@@ -8,4 +8,3 @@ def test_report_formats_are_serializable():
     assert json.loads(to_json(findings))[0]["type"] == "open_port"
     assert "target" in to_csv(findings)
     assert json.loads(to_sarif(findings))["version"] == "2.1.0"
-

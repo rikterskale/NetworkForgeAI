@@ -26,8 +26,16 @@ class SandboxRunner:
         if shutil.which("docker") is None:
             raise SandboxUnavailable("Docker is required for sandbox execution")
         wrapped = [
-            "docker", "run", "--rm", "--network", "none", "--cap-drop", "ALL",
-            "--security-opt", "no-new-privileges", self.image, *command,
+            "docker",
+            "run",
+            "--rm",
+            "--network",
+            "none",
+            "--cap-drop",
+            "ALL",
+            "--security-opt",
+            "no-new-privileges",
+            self.image,
+            *command,
         ]
         return subprocess.run(wrapped, capture_output=True, text=True, timeout=timeout, shell=False)
-

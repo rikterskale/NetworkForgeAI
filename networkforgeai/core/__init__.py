@@ -10,4 +10,12 @@ from .message_bus import AgentMessage, MessageBus
 from .scope import ScopePolicy
 from .task_queue import AgentTask, TaskQueue, TaskStatus
 
-__all__ = ["KnowledgeBase", "AgentMessage", "MessageBus", "ScopePolicy", "AgentTask", "TaskQueue", "TaskStatus"]
+__all__ = [
+    "KnowledgeBase",
+    "AgentMessage",
+    "MessageBus",
+    "ScopePolicy",
+    "AgentTask",
+    "TaskQueue",
+    "TaskStatus",
+]

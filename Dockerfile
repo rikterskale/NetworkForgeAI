@@ -17,8 +17,11 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements first for better caching
 COPY requirements.txt .
 
+# Keep packaging tools current so the runtime image does not ship known toolchain vulnerabilities.
+RUN python -m pip install --no-cache-dir --upgrade "pip>=26.1" "setuptools>=83.0.0"
+
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY networkforgeai/ ./networkforgeai/

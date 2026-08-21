@@ -9,13 +9,14 @@ Provides specialized prompts and reasoning patterns for pentesting agents:
 - Context optimization
 """
 
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
 class AgentPrompt:
     """Prompt configuration for an agent type."""
+
     system_prompt: str
     capabilities_description: str
     output_format: str
@@ -52,7 +53,6 @@ For each discovery, provide:
 SCOPE ENFORCEMENT:
 Before any action, verify the target is in the authorized scope: {authorized_targets}
 If uncertain, ASK for clarification before proceeding.""",
-    
     capabilities_description="""I can help you with:
 - Subdomain enumeration using passive sources
 - Port scanning (TCP, UDP)
@@ -60,7 +60,6 @@ If uncertain, ASK for clarification before proceeding.""",
 - Technology fingerprinting
 - DNS enumeration
 - Network mapping""",
-    
     output_format="""Report discoveries in this format:
 ```json
 {
@@ -71,13 +70,12 @@ If uncertain, ASK for clarification before proceeding.""",
   "follow_up": ["recommended next steps"]
 }
 ```""",
-    
     examples=[
         """Example discovery:
 {"type": "subdomain", "value": "api.target.com", "confidence": "HIGH", "evidence": "DNS resolution via certificate transparency logs", "follow_up": ["Port scan api.target.com", "Check for API documentation"]}""",
         """Example discovery:
-{"type": "port", "value": "443/tcp", "confidence": "HIGH", "evidence": "Nmap SYN scan", "follow_up": ["HTTPS service detection", "SSL/TLS analysis"]}"""
-    ]
+{"type": "port", "value": "443/tcp", "confidence": "HIGH", "evidence": "Nmap SYN scan", "follow_up": ["HTTPS service detection", "SSL/TLS analysis"]}""",
+    ],
 )
 
 VULN_SCANNER_AGENT_PROMPT = AgentPrompt(
@@ -111,7 +109,6 @@ For each hypothesis:
 5. Estimated severity (CVSS)
 6. Recommended validation method
 7. Required approval level""",
-    
     capabilities_description="""I can analyze:
 - Web application vulnerabilities (OWASP Top 10)
 - Network service misconfigurations
@@ -119,7 +116,6 @@ For each hypothesis:
 - Information disclosure issues
 - Potential injection points
 - SSL/TLS configuration problems""",
-    
     output_format="""Report vulnerability hypotheses in this format:
 ```json
 {
@@ -133,11 +129,10 @@ For each hypothesis:
   "risk_level": "HIGH"
 }
 ```""",
-    
     examples=[
         """Example hypothesis:
 {"vulnerability_type": "SQL Injection", "affected_component": "/login username field", "evidence": ["Time-based delay observed", "Error-based response"], "confidence": 80, "estimated_cvss": 8.5, "validation_method": "sqlmap_with_approval", "approval_required": true, "risk_level": "HIGH"}"""
-    ]
+    ],
 )
 
 PLANNING_AGENT_PROMPT = AgentPrompt(
@@ -170,14 +165,12 @@ For each attack path:
 4. Risk assessment
 5. Detection probability
 6. Approval requirements""",
-    
     capabilities_description="""I can plan:
 - Multi-stage attack chains
 - Lateral movement paths
 - Privilege escalation sequences
 - Data exfiltration routes
 - Persistence mechanisms (for red team exercises)""",
-    
     output_format="""Present attack paths in this format:
 ```json
 {
@@ -193,8 +186,7 @@ For each attack path:
   "detection_risk": "MEDIUM"
 }
 ```""",
-    
-    examples=[]
+    examples=[],
 )
 
 REPORTING_AGENT_PROMPT = AgentPrompt(
@@ -219,14 +211,12 @@ OUTPUT SECTIONS:
 4. Technical Details
 5. Remediation Recommendations
 6. Appendix (evidence, logs)""",
-    
     capabilities_description="""I can generate:
 - Executive summaries for leadership
 - Technical reports for engineers
 - Developer-friendly remediation guides
 - Compliance mapping reports
 - SARIF files for IDE integration""",
-    
     output_format="""Reports include:
 - Finding title and severity
 - CVSS score and vector
@@ -234,14 +224,14 @@ OUTPUT SECTIONS:
 - Reproduction steps
 - Remediation guidance
 - References (CWE, OWASP)""",
-    
-    examples=[]
+    examples=[],
 )
 
 
 # ============================================================================
 # CHAIN-OF-THOUGHT TEMPLATES
 # ============================================================================
+
 
 def cot_vulnerability_analysis(finding: str, context: Dict[str, Any]) -> str:
     """Generate chain-of-thought prompt for vulnerability analysis."""
@@ -282,8 +272,10 @@ Provide your analysis following these steps."""
 
 def cot_attack_path_planning(vulnerabilities: List[Dict], target_env: str) -> str:
     """Generate chain-of-thought prompt for attack path planning."""
-    vuln_list = "\n".join([f"- {v.get('type', 'Unknown')}: {v.get('description', '')}" for v in vulnerabilities])
-    
+    vuln_list = "\n".join(
+        [f"- {v.get('type', 'Unknown')}: {v.get('description', '')}" for v in vulnerabilities]
+    )
+
     return f"""Let's construct attack paths systematically:
 
 Available Vulnerabilities:
@@ -357,27 +349,28 @@ Format your response:
 # OUTPUT PARSING UTILITIES
 # ============================================================================
 
+
 def parse_json_response(response: str) -> Optional[Dict[str, Any]]:
     """Extract and parse JSON from model response."""
     import json
     import re
-    
+
     # Try to find JSON block
-    json_pattern = r'```(?:json)?\s*({.*?})\s*```'
+    json_pattern = r"```(?:json)?\s*({.*?})\s*```"
     matches = re.findall(json_pattern, response, re.DOTALL)
-    
+
     if matches:
         try:
             return json.loads(matches[0])
         except json.JSONDecodeError:
             pass
-    
+
     # Try to parse entire response as JSON
     try:
         return json.loads(response)
     except json.JSONDecodeError:
         pass
-    
+
     return None
 
 
@@ -385,7 +378,7 @@ def extract_findings_from_response(response: str, agent_type: str) -> List[Dict[
     """Extract structured findings from agent response."""
     findings = []
     parsed = parse_json_response(response)
-    
+
     if parsed:
         if agent_type == "recon":
             # Single finding or list
@@ -398,7 +391,7 @@ def extract_findings_from_response(response: str, agent_type: str) -> List[Dict[
                 findings.extend(parsed)
             else:
                 findings.append(parsed)
-    
+
     return findings
 
 
@@ -406,27 +399,28 @@ def extract_findings_from_response(response: str, agent_type: str) -> List[Dict[
 # CONTEXT OPTIMIZATION
 # ============================================================================
 
+
 def truncate_context(messages: List[Dict], max_tokens: int = 4000) -> List[Dict]:
     """Truncate message history to fit within token limit."""
     # Simple implementation - in production use proper token counting
     max_chars = max_tokens * 4  # Approximate
-    
+
     total_chars = sum(len(m.get("content", "")) for m in messages)
-    
+
     if total_chars <= max_chars:
         return messages
-    
+
     # Keep system message and recent messages
     result = []
     remaining_chars = max_chars
-    
+
     # Always keep system message
     for msg in messages:
         if msg.get("role") == "system":
             result.append(msg)
             remaining_chars -= len(msg.get("content", ""))
             break
-    
+
     # Add recent messages until limit
     for msg in reversed(messages):
         if msg.get("role") == "system":
@@ -439,27 +433,29 @@ def truncate_context(messages: List[Dict], max_tokens: int = 4000) -> List[Dict]
             # Truncate this message
             truncated = msg.copy()
             truncated["content"] = msg["content"][:remaining_chars] + "...[truncated]"
-            result.insert(len(result) if result and result[0].get("role") == "system" else 0, truncated)
+            result.insert(
+                len(result) if result and result[0].get("role") == "system" else 0, truncated
+            )
             break
-    
+
     return result
 
 
 def summarize_conversation(messages: List[Dict]) -> str:
     """Create a summary of conversation history."""
     summary_parts = []
-    
+
     for msg in messages:
         role = msg.get("role", "unknown")
         content = msg.get("content", "")[:100]  # First 100 chars
-        
+
         if role == "system":
             continue
         elif role == "user":
             summary_parts.append(f"User asked about: {content}...")
         elif role == "assistant":
             summary_parts.append(f"Assistant responded: {content}...")
-    
+
     return "\n".join(summary_parts)
 
 

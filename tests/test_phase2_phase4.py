@@ -13,6 +13,7 @@ def test_task_queue_tracks_completion():
         received = await queue.get()
         queue.complete(received)
         assert queue.snapshot()[0]["status"] == TaskStatus.COMPLETED.value
+
     asyncio.run(scenario())
 
 
@@ -33,14 +34,18 @@ def test_retry_retries_then_succeeds():
 def test_orchestrator_persists_agent_and_task_state():
     async def scenario():
         import tempfile
+
         from networkforgeai.agents import ReconAgent
+
         with tempfile.TemporaryDirectory() as directory:
-            orchestrator = ScanOrchestrator(ScanConfig("example.com", ["example.com"], save_dir=directory))
+            orchestrator = ScanOrchestrator(
+                ScanConfig("example.com", ["example.com"], save_dir=directory)
+            )
             orchestrator.register_agent(ReconAgent())
             await orchestrator.start()
             await orchestrator.execute_scan()
             state = (orchestrator.save_dir / "scan_state.json").read_text()
             assert "agent_states" in state
             assert "task_queue" in state
-    asyncio.run(scenario())
 
+    asyncio.run(scenario())

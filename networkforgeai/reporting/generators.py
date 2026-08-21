@@ -25,13 +25,26 @@ def to_csv(findings: Iterable[dict[str, Any]]) -> str:
 def to_sarif(findings: Iterable[dict[str, Any]]) -> str:
     results = []
     for finding in findings:
-        results.append({
-            "ruleId": finding.get("type", "networkforgeai-finding"),
-            "level": {"critical": "error", "high": "error", "medium": "warning"}.get(
-                str(finding.get("severity", "note")).lower(), "note"
-            ),
-            "message": {"text": finding.get("description") or finding.get("summary", "")},
-            "locations": [{"physicalLocation": {"artifactLocation": {"uri": finding.get("target", "unknown")}}}],
-        })
-    return json.dumps({"version": "2.1.0", "runs": [{"tool": {"driver": {"name": "NetworkForgeAI"}}, "results": results}]}, indent=2)
-
+        results.append(
+            {
+                "ruleId": finding.get("type", "networkforgeai-finding"),
+                "level": {"critical": "error", "high": "error", "medium": "warning"}.get(
+                    str(finding.get("severity", "note")).lower(), "note"
+                ),
+                "message": {"text": finding.get("description") or finding.get("summary", "")},
+                "locations": [
+                    {
+                        "physicalLocation": {
+                            "artifactLocation": {"uri": finding.get("target", "unknown")}
+                        }
+                    }
+                ],
+            }
+        )
+    return json.dumps(
+        {
+            "version": "2.1.0",
+            "runs": [{"tool": {"driver": {"name": "NetworkForgeAI"}}, "results": results}],
+        },
+        indent=2,
+    )

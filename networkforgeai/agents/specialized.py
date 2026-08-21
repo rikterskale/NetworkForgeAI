@@ -20,8 +20,14 @@ class PlanningAgent(ContextAgent):
     async def execute(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
         self.status = AgentStatus.RUNNING
         vulnerabilities = context.get("vulnerabilities", [])
-        paths = [{"stage": 1, "finding": item.get("title", item.get("type", "finding")),
-                  "requires_approval": True} for item in vulnerabilities]
+        paths = [
+            {
+                "stage": 1,
+                "finding": item.get("title", item.get("type", "finding")),
+                "requires_approval": True,
+            }
+            for item in vulnerabilities
+        ]
         self.status = AgentStatus.COMPLETED
         return {"task": task, "findings": [], "context_updates": {"attack_paths": paths}}
 
@@ -46,8 +52,11 @@ class QualityAssuranceAgent(ContextAgent):
             key = (str(finding.get("type", "")), str(finding.get("target", "")))
             unique.setdefault(key, finding)
         self.status = AgentStatus.COMPLETED
-        return {"task": task, "findings": list(unique.values()),
-                "context_updates": {"deduplicated_findings": list(unique.values())}}
+        return {
+            "task": task,
+            "findings": list(unique.values()),
+            "context_updates": {"deduplicated_findings": list(unique.values())},
+        }
 
 
 class WebApplicationAgent(ContextAgent):
@@ -57,8 +66,14 @@ class WebApplicationAgent(ContextAgent):
         self.status = AgentStatus.RUNNING
         urls = context.get("discovered_urls", [])
         self.status = AgentStatus.COMPLETED
-        return {"task": task, "findings": [],
-                "context_updates": {"web_targets_reviewed": urls, "active_testing_requires_approval": True}}
+        return {
+            "task": task,
+            "findings": [],
+            "context_updates": {
+                "web_targets_reviewed": urls,
+                "active_testing_requires_approval": True,
+            },
+        }
 
 
 class APISecurityAgent(ContextAgent):
@@ -67,8 +82,11 @@ class APISecurityAgent(ContextAgent):
     async def execute(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
         self.status = AgentStatus.RUNNING
         self.status = AgentStatus.COMPLETED
-        return {"task": task, "findings": [],
-                "context_updates": {"api_testing_plan": {"requires_approval": True}}}
+        return {
+            "task": task,
+            "findings": [],
+            "context_updates": {"api_testing_plan": {"requires_approval": True}},
+        }
 
 
 class NetworkExploitationAgent(ContextAgent):
@@ -76,8 +94,7 @@ class NetworkExploitationAgent(ContextAgent):
 
     async def execute(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
         self.status = AgentStatus.WAITING_APPROVAL
-        return {"task": task, "findings": [],
-                "context_updates": {"exploitation_blocked": True}}
+        return {"task": task, "findings": [], "context_updates": {"exploitation_blocked": True}}
 
 
 class PostExploitationAgent(ContextAgent):
@@ -85,6 +102,8 @@ class PostExploitationAgent(ContextAgent):
 
     async def execute(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
         self.status = AgentStatus.WAITING_APPROVAL
-        return {"task": task, "findings": [],
-                "context_updates": {"post_exploitation_blocked": True}}
-
+        return {
+            "task": task,
+            "findings": [],
+            "context_updates": {"post_exploitation_blocked": True},
+        }

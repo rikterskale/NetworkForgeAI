@@ -127,6 +127,16 @@ uvicorn networkforgeai.interface.dashboard:app --host 127.0.0.1 --port 8080
 ```
 The dashboard currently exposes authenticated read-only health and report-listing endpoints.
 
+### 5. Run the production readiness gate locally
+
+```bash
+make ci
+```
+
+The gate checks formatting, linting, tests and coverage, dependency/security scans,
+documentation links, Docker configuration, safe defaults, approval fail-closed
+behavior, and report generation. It never scans an external target.
+
 ## Workflows
 
 ### Reconnaissance Workflow
