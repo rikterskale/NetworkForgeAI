@@ -152,8 +152,8 @@ def test_agent_message_and_approval_branches():
 
 
 def test_registry_exports_and_recon_empty_paths():
-    assert len(get_available_tools()) == 9
-    assert get_tool_by_name("metasploit").name == "metasploit"
+    assert len(get_available_tools()) == 10
+    assert get_tool_by_name("browser").name == "browser"
     assert get_tool_by_name("nmap").name == "nmap"
     with pytest.raises(ValueError):
         get_tool_by_name("missing")

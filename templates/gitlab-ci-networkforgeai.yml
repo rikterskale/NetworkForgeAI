@@ -1,0 +1,62 @@
+# GitLab CI parity template for NetworkForgeAI quality gates.
+#
+# Mirrors the GitHub Actions pipeline (.github/workflows/ci.yml): lint, tests
+# with coverage, strict typecheck, security scanning, documentation audit, and
+# the findings policy gate.
+#
+# Usage: include this file from your project's .gitlab-ci.yml and override the
+# variables below as needed:
+#
+#   include:
+#     - project: your-group/your-repo
+#       ref: main
+#       file: templates/gitlab-ci-networkforgeai.yml
+
+stages: [lint, test, typecheck, security, docs, findings]
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  # Findings gate input; point at a findings.json / SARIF artifact path.
+  FINDINGS_INPUT: "tests/fixtures/ci-findings-pass.json"
+
+default:
+  image: python:3.11
+  cache:
+    paths:
+      - .cache/pip
+  before_script:
+    - python -m pip install --upgrade pip
+    - python -m pip install -e ".[dev,runtime,llm]"
+
+lint:
+  stage: lint
+  script:
+    - ruff check networkforgeai tests tools
+    - ruff format --check networkforgeai tests tools
+
+test:
+  stage: test
+  script:
+    - pytest -q --cov=networkforgeai --cov-report=term-missing --cov-fail-under=90
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+
+typecheck:
+  stage: typecheck
+  script:
+    - mypy --strict networkforgeai
+
+security:
+  stage: security
+  script:
+    - bandit -q -r networkforgeai -ll
+    - pip-audit
+
+docs:
+  stage: docs
+  script:
+    - python tools/ci_docs_audit.py
+
+findings-gate:
+  stage: findings
+  script:
+    - python tools/ci_findings_gate.py "$FINDINGS_INPUT" --json

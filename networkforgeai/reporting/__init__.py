@@ -5,7 +5,7 @@ from .compliance import (
     owasp_category,
     ptes_phase,
 )
-from .generators import to_csv, to_html, to_json, to_sarif
+from .generators import to_csv, to_html, to_json, to_pdf, to_sarif
 from .models import (
     Evidence,
     Finding,
@@ -25,6 +25,7 @@ __all__ = [
     "to_csv",
     "to_html",
     "to_json",
+    "to_pdf",
     "to_sarif",
     "Evidence",
     "Finding",

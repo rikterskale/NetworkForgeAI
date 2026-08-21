@@ -20,7 +20,7 @@ from networkforgeai.reporting import (
   is a stable hash of (type, target, title).
 - `Evidence(kind, content, source, sensitive=False)` — sensitive evidence is
   redacted by default in every serialized output.
-- `to_json / to_csv / to_sarif / to_html(findings)` — format generators; all
+- `to_json / to_csv / to_sarif / to_html / to_pdf(findings)` — format generators; all
   normalize and deduplicate input first.
 - `deduplicate_findings(values)` — collapses identical (type, target, title)
   records keeping the highest severity.

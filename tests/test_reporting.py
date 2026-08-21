@@ -12,6 +12,7 @@ from networkforgeai.reporting import (
     remediation_for,
     to_csv,
     to_json,
+    to_pdf,
     to_sarif,
 )
 
@@ -81,3 +82,42 @@ def test_report_generators_normalize_and_deduplicate():
     assert "redacted" not in to_csv(findings).lower()
     sarif = json.loads(to_sarif(findings))
     assert len(sarif["runs"][0]["results"]) == 1
+
+
+def test_pdf_output_is_valid_and_sorted_by_severity():
+    import re
+
+    pdf = to_pdf(
+        [
+            {"type": "info", "severity": "informational", "title": "Banner", "target": "t.example"},
+            {
+                "type": "xss",
+                "title": "Reflected XSS",
+                "severity": "high",
+                "target": "app.example",
+                "description": "Input is reflected (unescaped) with backslash \\ and parens ().",
+                "remediation": "Encode output before rendering.",
+            },
+        ]
+    )
+    assert isinstance(pdf, bytes)
+    assert pdf.startswith(b"%PDF-1.4")
+    assert b"%%EOF" in pdf
+    # xref offsets must point at their object headers
+    xref_pos = int(re.search(rb"startxref\n(\d+)", pdf).group(1))
+    assert pdf[xref_pos:].startswith(b"xref")
+    for number, offset in enumerate(re.findall(rb"(\d{10}) 00000 n", pdf[xref_pos:]), start=1):
+        assert pdf[int(offset) :].startswith(f"{number} 0 obj".encode())
+    # Escaping kept the payload parseable and severity ordering applied
+    body = pdf.decode("latin-1")
+    assert "\\(" in body and "\\)" in body  # escaped parens survive
+    high_index = body.find("[HIGH]")
+    info_index = body.find("[INFORMATIONAL]")
+    assert -1 < high_index < info_index
+    assert "1 finding(s)" not in body  # summary counts both findings
+
+
+def test_pdf_handles_empty_input():
+    pdf = to_pdf([])
+    assert pdf.startswith(b"%PDF-1.4")
+    assert b"no findings" in pdf

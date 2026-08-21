@@ -1,7 +1,10 @@
+import json
+
 import pytest
 
 from networkforgeai.core.scope import ScopePolicy
 from networkforgeai.tools import (
+    BrowserAutomationTool,
     CrackMapExecTool,
     HydraTool,
     ImpacketTools,
@@ -165,3 +168,41 @@ def test_impacket_tool_selection_and_parsing():
     findings = tool.parse_findings("Session established\nCORP\\alice (admin)", "")
     types = sorted(f["type"] for f in findings)
     assert types == ["connection_success", "user_enumerated"]
+
+
+def test_browser_tool_builds_playwright_command():
+    tool = BrowserAutomationTool()
+    cmd = tool.build_command("app.example.test", {"max_pages": 3})
+    assert cmd[0] == "python" and cmd[1] == "-c"
+    assert cmd[3] == "https://app.example.test"
+    assert cmd[4] == "3"
+    # Existing URL schemes are preserved, not double-prefixed
+    assert BrowserAutomationTool().build_command("http://a.test")[3] == "http://a.test"
+
+
+def test_browser_tool_parses_script_output():
+    tool = BrowserAutomationTool()
+    payload = {
+        "url": "https://a.test",
+        "pages": [{"url": "https://a.test", "status": 200, "title": "Login"}],
+        "findings": [{"type": "insecure_form", "url": "https://a.test", "count": 1}],
+    }
+    findings = tool.parse_findings(json.dumps(payload), "")
+    types = sorted(f["type"] for f in findings)
+    assert types == ["insecure_form", "page_surface"]
+    page = next(f for f in findings if f["type"] == "page_surface")
+    assert page["status"] == 200 and page["title"] == "Login"
+
+
+def test_browser_tool_handles_missing_playwright_and_bad_output():
+    tool = BrowserAutomationTool()
+    error = tool.parse_findings('{"error": "playwright is not installed"}', "")
+    assert error[0]["type"] == "browser_error"
+    assert tool.parse_findings("not json at all", "") == []
+
+
+def test_browser_dry_run_is_allowed_without_gateway():
+    tool = BrowserAutomationTool(dry_run=True)
+    tool.scope_policy = ScopePolicy(["app.example.test"])
+    result = tool.execute("app.example.test")
+    assert result.success and "[DRY RUN]" in result.stdout

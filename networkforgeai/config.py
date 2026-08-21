@@ -26,6 +26,8 @@ class ReportFormat(str, Enum):
     JSON = "json"
     CSV = "csv"
     SARIF = "sarif"
+    PDF = "pdf"
+    HTML = "html"
 
 
 class Settings(BaseSettings):

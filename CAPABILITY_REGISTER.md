@@ -101,7 +101,7 @@
 | TLS-101 | Caido proxy integration | ✅ | Docker container (already in compose) |
 | TLS-102 | Burp Suite Community | 🔍 | License/automation constraints |
 | TLS-103 | OWASP ZAP integration | ✅ | CLI wrapper with alert parsing |
-| TLS-104 | Custom browser automation | 📋 | Playwright/Selenium |
+| TLS-104 | Custom browser automation | ✅ | `tools/browser_tool.py`: headless Playwright surface discovery (optional `[browser]` extra; sandbox image needs Chromium) |
 | TLS-105 | JWT tool integration | 📋 | Python library |
 | TLS-106 | GraphQL security tools | 📋 | InQL, GraphQL map |
 
@@ -131,7 +131,7 @@
 - **ToolRiskLevel**: LOW/MEDIUM/HIGH/CRITICAL classification
 - **ToolCategory**: NETWORK_SCAN, WEB_SCAN, PASSWORD_ATTACK, etc.
 
-#### Implemented Tools (9 Total)
+#### Implemented Tools (10 Total)
 1. **NmapTool** - Network scanning with service detection
 2. **MasscanTool** - High-speed port scanning
 3. **NiktoTool** - Web server vulnerability scanning
@@ -141,6 +141,7 @@
 7. **CrackMapExecTool** - Network exploitation (HIGH risk, HITL required)
 8. **ImpacketTools** - SMB/LDAP protocol tools (HIGH risk, HITL required)
 9. **MetasploitTool** - Exploitation console (CRITICAL risk, HITL required)
+10. **BrowserAutomationTool** - Playwright surface discovery (optional `[browser]` extra)
 
 #### Safety Features Implemented
 - ✅ Target validation before execution
@@ -239,7 +240,7 @@
 | RPT-002 | JSON | ✅ | Machine consumption, APIs |
 | RPT-003 | CSV | ✅ | Spreadsheet analysis |
 | RPT-004 | SARIF | ✅ | IDE integration, CI/CD |
-| RPT-005 | PDF | 🔍 | Executive summaries |
+| RPT-005 | PDF | ✅ | Dependency-free executive-summary PDF via `reporting.generators.to_pdf`; written per scan as `executive-summary.pdf` |
 | RPT-006 | HTML | ✅ | Escaped, severity-styled HTML via `reporting.generators.to_html` |
 | RPT-007 | Email delivery | 📋 | Automated distribution |
 
@@ -277,8 +278,8 @@
 ### CI/CD Platforms
 | ID | Platform | Status | Capabilities |
 |----|----------|--------|--------------|
-| CICD-001 | GitHub Actions | 🚧 | Findings policy gate and readiness artifacts |
-| CICD-002 | GitLab CI | 📋 | Block on critical findings |
+| CICD-001 | GitHub Actions | ✅ | Findings policy gate and readiness artifacts |
+| CICD-002 | GitLab CI | ✅ | Parity template `templates/gitlab-ci-networkforgeai.yml` (lint/test/typecheck/security/docs/findings gate) |
 | CICD-003 | Jenkins | 📋 | Plugin or webhook |
 | CICD-004 | CircleCI | 🔍 | Orb development |
 | CICD-005 | Azure Pipelines | 🔍 | Task development |
@@ -433,14 +434,15 @@ installed in CI so optional provider adapters typecheck against real stubs.
 Based on current progress (Phase 9 documentation complete; Phases 5–7 partially
 delivered), the following capabilities are highest priority:
 
-1. **RPT-005**: PDF executive-summary reports (Phase 6)
-2. **INT-102**: Microsoft Teams notifications over the shared HTTPS transport (Phase 7)
-3. **TLS-102**: OWASP ZAP-style browser automation / custom Playwright integration (Phase 3, TLS-104)
-4. **CICD-002**: GitLab CI findings gate parity with the GitHub Actions workflow (Phase 7)
+1. **TLS-105/106**: JWT tooling and GraphQL security integrations (Phase 3)
+2. **TUI-001..004**: Rich terminal UI (progress, live logs, approval dialogs) (Phase 5)
+3. **CMP-004/005**: ISO 27001 and PCI-DSS compliance mappings (Phase 6)
+4. **INT-102**: Microsoft Teams notifications over the shared HTTPS transport (Phase 7)
+5. **LLM-008**: Migrate the Google adapter from the EOL `google-generativeai` SDK to `google-genai` (Phase 4)
 
 Previously listed items (LLM adapters, CLI, dashboard MVP, validation engine,
-dashboard RBAC, agent graph, Metasploit) are complete and tracked in their phase
-tables above.
+dashboard RBAC, agent graph, Metasploit, PDF reports, browser automation, GitLab
+CI parity) are complete and tracked in their phase tables above.
 
 ---
 
@@ -448,6 +450,8 @@ tables above.
 
 | Date | Phase | Changes |
 |------|-------|---------|
+| Current Session | Phase 6/7 (cont.) | ✅ RPT-005 dependency-free executive-summary PDF (`to_pdf`, per-scan `executive-summary.pdf`); CICD-002 GitLab CI parity template (`templates/gitlab-ci-networkforgeai.yml`) |
+| Current Session | Phase 3 (cont.) | ✅ TLS-104 browser automation: `tools/browser_tool.py` — headless Playwright surface discovery behind the optional `[browser]` extra |
 | Current Session | Phase 4 (cont.) | 🔍 LLM-008 registered: migrate `models/google_adapter.py` from EOL `google-generativeai` to the new `google-genai` SDK |
 | Current Session | Phase 3 (cont.) | ✅ TLS-006 Metasploit integration: msfconsole resource scripts executed only in the Docker sandbox, CRITICAL risk with mandatory HITL approval and `check_only` mode |
 | Current Session | Phase 5 (cont.) | ✅ GUI-003 agent graph visualization: dependency-free SVG scan/agent topology in the operator console |

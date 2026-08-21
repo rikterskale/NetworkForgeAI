@@ -106,7 +106,12 @@ def test_settings_defaults_and_safety_validation():
     assert settings.approval_mode is ApprovalMode.MODERATE
     assert not settings.is_strict_mode
     assert settings.validate_security_config()
-    assert settings.report_formats == list(ReportFormat)
+    assert settings.report_formats == [
+        ReportFormat.MARKDOWN,
+        ReportFormat.JSON,
+        ReportFormat.CSV,
+        ReportFormat.SARIF,
+    ]
     with pytest.raises(ValueError, match="No LLM"):
         settings.validate_llm_config()
     with pytest.raises(ValueError, match="TARGET_SCOPE"):

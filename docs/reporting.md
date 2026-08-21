@@ -6,6 +6,7 @@ Each completed scan writes:
 - `findings.csv` for spreadsheet workflows.
 - `findings.sarif` for CI/security tooling.
 - `report.md` for human review.
+- `executive-summary.pdf` for management distribution.
 
 An HTML rendering is also available through `networkforgeai.reporting.to_html`
 for browser-based review; it escapes finding content and summarizes severity

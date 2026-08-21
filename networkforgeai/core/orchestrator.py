@@ -14,7 +14,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ..reporting import to_csv, to_json, to_sarif
+from ..reporting import to_csv, to_json, to_pdf, to_sarif
 from .approval_gateway import ApprovalGateway, _as_utc
 from .base_agent import AgentState, AgentStatus, BaseAgent
 from .knowledge_base import KnowledgeBase
@@ -335,6 +335,7 @@ class ScanOrchestrator:
         findings_file.write_text(to_json(all_findings))
         (self.save_dir / "findings.csv").write_text(to_csv(all_findings))
         (self.save_dir / "findings.sarif").write_text(to_sarif(all_findings))
+        (self.save_dir / "executive-summary.pdf").write_bytes(to_pdf(all_findings))
 
         # Markdown report
         md_report = self._generate_markdown_report()

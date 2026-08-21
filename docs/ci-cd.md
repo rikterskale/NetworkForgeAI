@@ -56,3 +56,30 @@ make findings-gate INPUT=./scans/<scan-id>/findings.json
 
 The default gate blocks high and critical findings unless they are marked
 remediated or false-positive.
+
+## GitLab CI
+
+A parity template for GitLab pipelines ships at
+`templates/gitlab-ci-networkforgeai.yml`. It runs the same stages as GitHub
+Actions: lint, tests (with the 90% coverage gate), strict MyPy, Bandit +
+pip-audit, documentation audit, and the findings policy gate.
+
+Include it from your project's `.gitlab-ci.yml`:
+
+```yaml
+include:
+  - project: your-group/your-repo
+    ref: main
+    file: templates/gitlab-ci-networkforgeai.yml
+```
+
+Point the findings gate at your scan output by overriding the variable:
+
+```yaml
+findings-gate:
+  variables:
+    FINDINGS_INPUT: "scans/<scan-id>/findings.json"
+```
+
+Like the GitHub workflow, the gate fails the pipeline when unremediated high or
+critical findings are present.
