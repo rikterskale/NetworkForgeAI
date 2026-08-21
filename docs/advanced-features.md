@@ -25,10 +25,13 @@ The initial implementation is deliberately modest and easy to audit:
 
 ## What retrieval does not do yet
 
-This foundation is not semantic search. It does not understand synonyms,
-generate embeddings, ingest external threat-intelligence feeds, or replace
-human approval. Model output remains an untrusted recommendation, and every
-tool action still follows the normal scope and approval controls.
+The foundation also includes an optional hybrid retriever. Callers that already
+have vectors can attach them to documents and provide a query vector; the
+retriever combines cosine similarity with the deterministic lexical score. If
+vectors are absent, it automatically falls back to local lexical retrieval.
+NetworkForgeAI does not generate vectors or contact an embedding service yet.
+Model output remains an untrusted recommendation, and every tool action still
+follows the normal scope and approval controls.
 
 ## For developers
 
@@ -42,6 +45,11 @@ retriever = LocalRetriever(
 )
 matches = retriever.search("HTTPS port")
 ```
+
+For vector-aware callers, use `HybridRetriever` and provide matching vector
+dimensions. A vector mismatch is treated as no semantic match rather than an
+error, which keeps provider integration failures from bypassing the safe
+lexical fallback.
 
 Most agents should use `BaseAgent.analyze_context` instead. Agents registered
 with `ScanOrchestrator` automatically receive its shared knowledge base.

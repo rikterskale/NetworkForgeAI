@@ -376,7 +376,7 @@ paths; these remain tracked rather than silently treated as resolved.
 | ADV-002 | Self-improvement loop | 🔍 | Very High |
 | ADV-003 | Transfer learning | 🔍 | High |
 | ADV-004 | Few-shot learning examples | 🚧 FOUNDATION | Bounded, opt-in trusted examples are formatted into agent analysis context |
-| ADV-005 | Retrieval-augmented generation | 🚧 FOUNDATION | Local deterministic retrieval is integrated into agent context; semantic retrieval remains future work |
+| ADV-005 | Retrieval-augmented generation | 🚧 HYBRID FOUNDATION | Agent context uses local retrieval; optional caller-supplied vectors now add semantic ranking |
 
 ### Automation & Intelligence
 | ID | Feature | Status | Notes |
