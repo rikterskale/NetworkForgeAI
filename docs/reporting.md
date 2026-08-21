@@ -7,6 +7,10 @@ Each completed scan writes:
 - `findings.sarif` for CI/security tooling.
 - `report.md` for human review.
 
+An HTML rendering is also available through `networkforgeai.reporting.to_html`
+for browser-based review; it escapes finding content and summarizes severity
+counts.
+
 Findings are sanitized before output to reduce accidental credential disclosure.
 Reports are evidence containers, not proof that a vulnerability is exploitable; every
 finding must retain its approval and validation context.
@@ -24,3 +28,24 @@ Reports normalize dictionary findings into a validated `Finding` record with:
 Duplicate findings collapse to one record, retaining the highest severity. Legacy
 scanner fields such as PoCs, reproduction steps, timestamps, and agent identifiers
 are preserved in metadata during normalization.
+
+## Compliance mappings
+
+`networkforgeai.reporting.compliance` maps finding types to standard
+frameworks: OWASP Top 10 (2021), PTES phases, and NIST CSF v1.1 categories.
+Use `annotate_compliance` to attach the mappings to normalized findings and
+`compliance_summary` for per-framework coverage counts in reports.
+
+## Validation engine
+
+`networkforgeai.core.validation` provides advisory validation support:
+
+- `cvss_base_score` computes CVSS v3.1 base scores from vector strings;
+- `generate_poc` produces advisory, never-executed PoC suggestions that still
+  require explicit human approval before any active use;
+- `eliminate_false_positives` scores findings with multi-signal heuristics and
+  suggests a lifecycle status;
+- `assess_impact` adjusts severity using business context (asset criticality,
+  internet exposure, finding class).
+
+All outputs are advisory; nothing here bypasses the approval gateway.

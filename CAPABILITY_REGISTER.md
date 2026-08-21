@@ -1,7 +1,7 @@
 # NetworkForgeAI Capability Register & Roadmap
 
-**Last Updated:** Phase 9 Started
-**Status:** Phase 8 quality gates verified; documentation and training work is now in progress
+**Last Updated:** Phase 9 In Progress
+**Status:** Validation engine, compliance mappings, HTML reports, and CLI approval/status UI delivered; strict MyPy gate extended
 **Safety Model:** Human-in-the-Loop (HITL) Required for All Actions
 
 ---
@@ -117,11 +117,11 @@
 ### Validation & Exploitation
 | ID | Capability | Status | Notes |
 |----|-----------|--------|-------|
-| VAL-001 | PoC exploit generator | 📋 | Python code generation (Phase 4 dependency) |
+| VAL-001 | PoC exploit generator | ✅ | Advisory templates via `core/validation.generate_poc` (never executed; HITL required) |
 | VAL-002 | Exploit validation runner | 📋 | Safe execution sandbox (Phase 4 dependency) |
-| VAL-003 | False positive eliminator | 📋 | Multi-method verification (Phase 4 dependency) |
-| VAL-004 | CVSS calculator | 📋 | Automated scoring |
-| VAL-005 | Impact assessment engine | 📋 | Business context integration (Phase 4 dependency) |
+| VAL-003 | False positive eliminator | ✅ | Multi-signal heuristics in `core/validation.eliminate_false_positives` |
+| VAL-004 | CVSS calculator | ✅ | CVSS v3.1 base scores in `core/validation.cvss_base_score` |
+| VAL-005 | Impact assessment engine | ✅ | Business-context severity adjustment in `core/validation.assess_impact` |
 
 ### Phase 3 Implementation Details
 
@@ -189,8 +189,8 @@
 |----|---------|--------|-------|
 | CLI-001 | Main entry point | ✅ | `networkforgeai` command |
 | CLI-002 | Scan initiation workflow | ✅ | Explicit target and scope setup |
-| CLI-003 | Real-time status display | 📋 | TUI with rich library |
-| CLI-004 | Approval prompt interface | 📋 | Interactive HITL dialogs |
+| CLI-003 | Real-time status display | ✅ | Dependency-free live agent status via `interface/cli_ui.StatusDisplay` |
+| CLI-004 | Approval prompt interface | ✅ | Terminal HITL prompts via `interface/cli_ui.ApprovalPrompt`; fail closed when non-interactive |
 | CLI-005 | Results viewer | ✅ | Safe report listing and viewing |
 | CLI-006 | Configuration manager | ✅ | Safety configuration validation |
 | CLI-007 | Help & documentation | ✅ | Argparse help and interface guide |
@@ -238,15 +238,15 @@
 | RPT-003 | CSV | ✅ | Spreadsheet analysis |
 | RPT-004 | SARIF | ✅ | IDE integration, CI/CD |
 | RPT-005 | PDF | 🔍 | Executive summaries |
-| RPT-006 | HTML | 📋 | Interactive reports |
+| RPT-006 | HTML | ✅ | Escaped, severity-styled HTML via `reporting.generators.to_html` |
 | RPT-007 | Email delivery | 📋 | Automated distribution |
 
 ### Compliance & Standards
 | ID | Standard | Status | Notes |
 |----|----------|--------|-------|
-| CMP-001 | OWASP Top 10 mapping | 📋 | Auto-categorization |
-| CMP-002 | PTES alignment | 📋 | Penetration Testing Execution Standard |
-| CMP-003 | NIST CSF mapping | 📋 | Cybersecurity Framework |
+| CMP-001 | OWASP Top 10 mapping | ✅ | `reporting/compliance.py` (2021 categories) |
+| CMP-002 | PTES alignment | ✅ | Phase mapping in `reporting/compliance.py` |
+| CMP-003 | NIST CSF mapping | ✅ | CSF v1.1 categories in `reporting/compliance.py` |
 | CMP-004 | ISO 27001 controls | 🔍 | Compliance reporting |
 | CMP-005 | PCI-DSS requirements | 🔍 | Payment card industry |
 
@@ -322,8 +322,9 @@ paths; these remain tracked rather than silently treated as resolved.
 |----------|------|-------|----------------|
 | 1 | Core orchestration | `networkforgeai/core/orchestrator.py` and agent lifecycle types | Strict MyPy passes for orchestration and agents |
 | 2 | LLM adapters | Anthropic, Google, and OpenAI adapter implementations | Optional-provider imports and stream signatures are typed |
-| 3 | Dashboard | `networkforgeai/interface/dashboard.py` | Dashboard module passes strict MyPy |
-| 4 | Repository gate | Remaining legacy modules | Full `mypy --strict networkforgeai` passes |
+| 3 | Dashboard | `networkforgeai/interface/dashboard.py` | ✅ Dashboard module passes strict MyPy (gate extended in Makefile) |
+| 3b | CLI UI / validation / compliance | `interface/cli_ui.py`, `core/validation.py`, `reporting/compliance.py` | ✅ Pass strict MyPy; included in the CI gate |
+| 4 | Repository gate | Remaining legacy modules (~100 errors, mostly unannotated orchestration/agents/adapters) | Full `mypy --strict networkforgeai` passes |
 
 ---
 
@@ -441,6 +442,7 @@ Based on current progress (Phase 9 active), the following capabilities are highe
 
 | Date | Phase | Changes |
 |------|-------|---------|
+| Current Session | Phase 9 (cont.) | ✅ Validation engine (VAL-001/003/004/005), compliance mappings (CMP-001..003), HTML reports (RPT-006), CLI approval prompts + status display (CLI-003/004); strict MyPy gate extended to dashboard, CLI UI, validation, and compliance modules |
 | Current Session | Phase 9 | ✅ Phase 8 core quality gates closed; strict MyPy gate added for maintained typed surfaces; Phase 9 documentation work started |
 | Current Session | Phase 3 | ✅ COMPLETE: Implemented BaseTool framework, 8 tool integrations (Nmap, Masscan, Nikto, OWASP ZAP, SQLMap, Hydra, CrackMapExec, Impacket) |
 | 2025-01-XX | Phase 1 | Foundation architecture, safety systems, repo structure |
