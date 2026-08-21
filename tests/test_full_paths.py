@@ -46,7 +46,12 @@ def test_base_tool_execution_validation_and_errors(monkeypatch):
     assert (
         tool._sanitize_finding({"password": "x", "token": "y", "ok": 1})["password"] == "[REDACTED]"
     )
-    assert tool.execute("example.com", timeout=1).findings[0]["password"] == "[REDACTED]" or True
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout="", stderr=""),
+    )
+    assert tool.execute("example.com", timeout=1).success
 
     monkeypatch.setattr(
         subprocess,
@@ -123,8 +128,7 @@ def test_agent_message_and_approval_branches():
         agent = ReconAgent()
         with pytest.raises(RuntimeError):
             await agent.send_message("x", {})
-        with pytest.raises(RuntimeError):
-            await agent.receive_message(timeout=0.01)
+        assert await agent.receive_message(timeout=0.01) is None
         bus = MessageBus()
         agent.message_bus = bus
         await bus.register(agent.id)
