@@ -167,6 +167,22 @@ def test_operator_console_shell_served_without_data(client):
     assert "example.com" not in body  # no data in the static shell
 
 
+def test_operator_console_tabbed_gui_shell(client):
+    body = client.get("/").text
+    for marker in (
+        'id="tabpanel-live"',
+        'id="tabpanel-scans"',
+        'id="tabpanel-reports"',
+        "switchTab(",
+        "loadFindings(",
+        "loadReports(",
+        "showReport(",
+        'id="findings"',
+        'id="reportview"',
+    ):
+        assert marker in body
+
+
 @pytest.fixture()
 def viewer_client(env, monkeypatch):
     monkeypatch.setenv("DASHBOARD_VIEWER_TOKEN", "viewer-token-456")

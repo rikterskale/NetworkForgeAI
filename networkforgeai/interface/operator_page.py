@@ -1,8 +1,9 @@
 """Single-file operator console served by the dashboard at ``GET /``.
 
-Deliberately dependency-free: no build chain, no external assets. All state is
-fetched from the authenticated JSON API; the operator supplies their bearer
-token in the page, which is kept in memory only.
+Deliberately dependency-free: no build chain, no external assets. The console
+is a tabbed GUI (live operations, persisted scans with findings, and a report
+browser). All state is fetched from the authenticated JSON API; the operator
+supplies their bearer token in the page, which is kept in memory only.
 """
 
 OPERATOR_PAGE = """<!DOCTYPE html>
@@ -25,6 +26,13 @@ OPERATOR_PAGE = """<!DOCTYPE html>
   .status-critical { color: #ff8a80; font-weight: bold; } .status-high { color: #ffb74d; font-weight: bold; }
   .status-medium { color: #ffe082; } .muted { color: #9aa0a6; }
   section { margin-bottom: 1rem; }
+  nav.tabs { border-bottom: 1px solid #333; margin: 1.5rem 0 1rem; }
+  nav.tabs button { background: transparent; color: #9aa0a6; border-radius: 4px 4px 0 0; padding: .5rem 1rem; }
+  nav.tabs button.active { color: #e6e6e6; border-bottom: 2px solid #4a90d9; }
+  .tabpanel { display: none; } .tabpanel.active { display: block; }
+  pre.report { background: #10141a; border: 1px solid #333; border-radius: 4px; padding: .8rem; overflow-x: auto; white-space: pre-wrap; }
+  tr.clickable { cursor: pointer; } tr.clickable:hover td { background: #1e242b; }
+  #findingspane h3 { margin-bottom: .2rem; }
 </style>
 </head>
 <body>
@@ -36,6 +44,13 @@ OPERATOR_PAGE = """<!DOCTYPE html>
   <span id="conn" class="muted">disconnected</span>
 </section>
 
+<nav class="tabs">
+  <button id="tabbtn-live" class="active" onclick="switchTab('live')">Live</button>
+  <button id="tabbtn-scans" onclick="switchTab('scans')">Scans &amp; findings</button>
+  <button id="tabbtn-reports" onclick="switchTab('reports')">Reports</button>
+</nav>
+
+<div id="tabpanel-live" class="tabpanel active">
 <section>
   <h2>Scan steering</h2>
   <button class="warn" onclick="steer('pause')">Pause</button>
@@ -54,9 +69,28 @@ OPERATOR_PAGE = """<!DOCTYPE html>
 <h2>Approval queue</h2>
 <div class="muted">All exploitation actions require explicit approval. Approve only what your authorization covers.</div>
 <table id="approvals"><thead><tr><th>Action</th><th>Target</th><th>Risk</th><th>Description</th><th></th></tr></thead><tbody></tbody></table>
+</div>
 
+<div id="tabpanel-scans" class="tabpanel">
 <h2>Recent scans</h2>
+<div class="muted">Click a scan to load its persisted findings.</div>
 <table id="scans"><thead><tr><th>Scan ID</th><th>Status</th><th>Target</th><th>Findings</th></tr></thead><tbody></tbody></table>
+
+<div id="findingspane">
+  <h3 id="findingsheading">Findings</h3>
+  <table id="findings">
+    <thead><tr><th>Type</th><th>Title</th><th>Severity</th><th>Target</th><th>Status</th><th>Remediation</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+</div>
+
+<div id="tabpanel-reports" class="tabpanel">
+<h2>Reports</h2>
+<div class="muted">Generated report files for the configured output directory. Click to view.</div>
+<table id="reports"><thead><tr><th>Report path</th></tr></thead><tbody></tbody></table>
+<pre id="reportview" class="report" hidden></pre>
+</div>
 
 <script>
 const $ = (id) => document.getElementById(id);
@@ -86,6 +120,19 @@ async function refreshAll() {
   } catch (err) {
     setConn(false, "error: " + err.message + " (check token / live scan)");
   }
+}
+
+function switchTab(name) {
+  for (const panel of document.getElementsByClassName("tabpanel")) {
+    panel.classList.remove("active");
+  }
+  for (const btn of document.querySelectorAll("nav.tabs button")) {
+    btn.classList.remove("active");
+  }
+  const panel = $("tabpanel-" + name), btn = $("tabbtn-" + name);
+  if (panel) panel.classList.add("active");
+  if (btn) btn.classList.add("active");
+  if (name === "reports") loadReports();
 }
 
 const STATUS_COLORS = {
@@ -174,8 +221,75 @@ function renderScans(scans) {
   const tbody = $("scans").tBodies[0];
   tbody.innerHTML = "";
   for (const s of scans) {
+    const tr = document.createElement("tr");
+    tr.className = "clickable";
+    tr.innerHTML = `<td>${esc(s.scan_id)}</td><td>${esc(s.status)}</td>` +
+      `<td>${esc(s.target || "")}</td><td>${s.finding_count}</td>`;
+    tr.addEventListener("click", () => loadFindings(s.scan_id));
+    tbody.appendChild(tr);
+  }
+  if (!scans.length) {
     tbody.insertAdjacentHTML("beforeend",
-      `<tr><td>${esc(s.scan_id)}</td><td>${esc(s.status)}</td><td>${esc(s.target || "")}</td><td>${s.finding_count}</td></tr>`);
+      "<tr><td colspan='4' class='muted'>No persisted scans found</td></tr>");
+  }
+}
+
+async function loadFindings(scanId) {
+  try {
+    const payload = await api(`/scans/${encodeURIComponent(scanId)}/findings`);
+    $("findingsheading").textContent =
+      `Findings — ${scanId.slice(0, 8)} (${payload.count})`;
+    const tbody = $("findings").tBodies[0];
+    tbody.innerHTML = "";
+    for (const f of payload.findings || []) {
+      tbody.insertAdjacentHTML("beforeend",
+        `<tr><td>${esc(f.type)}</td><td>${esc(f.title || "")}</td>` +
+        `<td class="status-${esc(f.severity)}">${esc(f.severity)}</td>` +
+        `<td>${esc(f.target)}</td><td>${esc(f.status || "")}</td>` +
+        `<td>${esc(f.remediation || "")}</td></tr>`);
+    }
+    if (!payload.count) {
+      tbody.insertAdjacentHTML("beforeend",
+        "<tr><td colspan='6' class='muted'>No findings recorded</td></tr>");
+    }
+  } catch (err) {
+    alert("Failed to load findings: " + err.message);
+  }
+}
+
+async function loadReports() {
+  try {
+    const payload = await api("/reports");
+    const tbody = $("reports").tBodies[0];
+    tbody.innerHTML = "";
+    $("reportview").hidden = true;
+    for (const path of payload.reports || []) {
+      const tr = document.createElement("tr");
+      tr.className = "clickable";
+      tr.innerHTML = `<td>${esc(path)}</td>`;
+      tr.addEventListener("click", () => showReport(path));
+      tbody.appendChild(tr);
+    }
+    if (!(payload.reports || []).length) {
+      tbody.insertAdjacentHTML("beforeend",
+        "<tr><td class='muted'>No reports available</td></tr>");
+    }
+  } catch (err) {
+    alert("Failed to load reports: " + err.message);
+  }
+}
+
+async function showReport(path) {
+  try {
+    const payload = await api(`/reports/${path.split("/").map(encodeURIComponent).join("/")}`);
+    const view = $("reportview");
+    view.hidden = false;
+    const content = typeof payload.content === "string"
+      ? payload.content
+      : JSON.stringify(payload.content, null, 2);
+    view.textContent = `# ${path}\n\n${content}`;
+  } catch (err) {
+    alert("Failed to load report: " + err.message);
   }
 }
 

@@ -207,9 +207,9 @@
 | GUI-002 | Live scan monitoring | ✅ | `/agents` + operator console polling |
 | GUI-003 | Agent graph visualization | ✅ | Dependency-free SVG graph (scan node + per-agent status nodes) in the operator console |
 | GUI-004 | Approval workflow UI | ✅ | Approval queue with approve/reject in console; audited via gateway |
-| GUI-005 | Findings dashboard | ✅ | Read-only persisted scan summaries (`/scans`, `/scans/{id}/findings`) |
-| GUI-006 | Report generator | ✅ | Read-only report discovery and retrieval |
-| GUI-007 | Historical runs browser | ✅ | Scan state listing endpoint |
+| GUI-005 | Findings dashboard | ✅ | Scans tab: click a persisted scan to view its findings inline (severity-colored) |
+| GUI-006 | Report generator | ✅ | Reports tab: browse and view generated reports in the console |
+| GUI-007 | Historical runs browser | ✅ | Tabbed console GUI: Live / Scans & findings / Reports views |
 | GUI-008 | Steering controls | ✅ | Pause/resume/emergency-stop via `/scan/*` endpoints; fail closed without live scan |
 | GUI-009 | User authentication | ✅ | Bearer-token auth enforced fail-closed; optional read-only viewer token |
 | GUI-010 | Role-based access control | ✅ | Operator vs viewer roles via `DASHBOARD_AUTH_TOKEN` / `DASHBOARD_VIEWER_TOKEN`; steering and approvals operator-only |
@@ -437,7 +437,6 @@ Based on current progress (Phase 9 documentation complete; Phases 5–7 partiall
 delivered), the following capabilities are highest priority:
 
 1. **LLM-008**: Migrate the Google adapter from the EOL `google-generativeai` SDK to `google-genai` (Phase 4)
-3. **GUI-005+**: Dashboard findings drill-down / trend views beyond read-only summaries (Phase 5)
 4. **RPT-007 / INT-104**: Email delivery of reports and alerts over SMTP with TLS (Phases 6–7)
 
 Previously listed items (LLM adapters, CLI, dashboard MVP, validation engine,

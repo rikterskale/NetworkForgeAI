@@ -34,6 +34,9 @@ Read-only surfaces:
 
 - `GET /health` — liveness response.
 - `GET /` — dependency-free operator console (static shell; no data without a token).
+  The console is a tabbed GUI: **Live** (steering, agent graph, agent status,
+  approval queue), **Scans & findings** (persisted scans with click-through
+  findings view), and **Reports** (browse and view generated report files).
 - `GET /reports` — relative report paths.
 - `GET /reports/{path}` — report content, with JSON decoded when applicable.
 - `GET /scans` — persisted scan summaries.
