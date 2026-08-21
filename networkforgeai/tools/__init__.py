@@ -3,6 +3,7 @@
 from typing import Any, cast
 
 from .base_tool import BaseTool, ToolCategory, ToolResult, ToolRiskLevel
+from .metasploit_tool import MetasploitTool
 from .nmap_tool import MasscanTool, NmapTool
 from .password_tools import CrackMapExecTool, HydraTool, ImpacketTools
 from .web_scanner_tools import NiktoTool, OWASPZAPTool, SQLMapTool
@@ -24,6 +25,7 @@ __all__ = [
     "HydraTool",
     "CrackMapExecTool",
     "ImpacketTools",
+    "MetasploitTool",
 ]
 
 
@@ -38,6 +40,7 @@ def get_available_tools() -> dict[str, type[BaseTool]]:
         "hydra": HydraTool,
         "crackmapexec": CrackMapExecTool,
         "impacket": ImpacketTools,
+        "metasploit": MetasploitTool,
     }
 
 

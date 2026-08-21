@@ -44,6 +44,10 @@ OPERATOR_PAGE = """<!DOCTYPE html>
   <span id="scanstate" class="muted"></span>
 </section>
 
+<h2>Agent graph</h2>
+<div class="muted">Live view of agents attached to the active scan.</div>
+<svg id="agentgraph" width="100%" height="260" viewBox="0 0 600 260" role="img" aria-label="Agent graph"></svg>
+
 <h2>Agent status</h2>
 <table id="agents"><thead><tr><th>ID</th><th>Name</th><th>Status</th><th>Capabilities</th></tr></thead><tbody></tbody></table>
 
@@ -84,7 +88,55 @@ async function refreshAll() {
   }
 }
 
+const STATUS_COLORS = {
+  idle: "#9aa0a6",
+  working: "#66bb6a",
+  running: "#66bb6a",
+  waiting: "#ffb74d",
+  stopped: "#ef5350",
+};
+
+function renderAgentGraph(agents) {
+  const svg = $("agentgraph");
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  const NS = "http://www.w3.org/2000/svg";
+  const cx = 300, cy = 130, rx = 220, ry = 90;
+  const scan = document.createElementNS(NS, "circle");
+  scan.setAttribute("cx", cx); scan.setAttribute("cy", cy);
+  scan.setAttribute("r", 34);
+  scan.setAttribute("fill", "#1e242b"); scan.setAttribute("stroke", "#4a90d9");
+  scan.setAttribute("stroke-width", "2");
+  const scanText = document.createElementNS(NS, "text");
+  scanText.setAttribute("x", cx); scanText.setAttribute("y", cy + 5);
+  scanText.setAttribute("text-anchor", "middle");
+  scanText.setAttribute("fill", "#e6e6e6"); scanText.textContent = "scan";
+  svg.append(scan, scanText);
+  agents.forEach((agent, i) => {
+    const angle = (2 * Math.PI * i) / Math.max(agents.length, 1) - Math.PI / 2;
+    const x = cx + rx * Math.cos(angle), y = cy + ry * Math.sin(angle);
+    const color = STATUS_COLORS[(agent.status || "").toLowerCase()] || "#9aa0a6";
+    const line = document.createElementNS(NS, "line");
+    line.setAttribute("x1", cx); line.setAttribute("y1", cy);
+    line.setAttribute("x2", x); line.setAttribute("y2", y);
+    line.setAttribute("stroke", "#333"); line.setAttribute("stroke-width", "1.5");
+    const node = document.createElementNS(NS, "circle");
+    node.setAttribute("cx", x); node.setAttribute("cy", y); node.setAttribute("r", 14);
+    node.setAttribute("fill", color);
+    const title = document.createElementNS(NS, "title");
+    title.textContent = agent.name + " [" + agent.status + "] " +
+      (agent.capabilities || []).join(", ");
+    node.appendChild(title);
+    const label = document.createElementNS(NS, "text");
+    label.setAttribute("x", x); label.setAttribute("y", y + 30);
+    label.setAttribute("text-anchor", "middle");
+    label.setAttribute("fill", "#e6e6e6");
+    label.textContent = agent.name;
+    svg.append(line, node, title, label);
+  });
+}
+
 function renderAgents(payload) {
+  renderAgentGraph(payload.agents);
   const tbody = $("agents").tBodies[0];
   tbody.innerHTML = "";
   for (const row of payload.agents) {

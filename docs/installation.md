@@ -153,7 +153,7 @@ networkforgeai --list-tools
 networkforgeai --validate-config
 ```
 
-The tool list should show eight integrations. Configuration validation requires
+The tool list should show nine integrations. Configuration validation requires
 a non-empty `TARGET_SCOPE`; it does not scan anything.
 
 Run the local readiness checks:

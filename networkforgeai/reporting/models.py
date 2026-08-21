@@ -4,9 +4,16 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Iterable
+
+
+def _as_utc(value: datetime) -> datetime:
+    """Coerce legacy naive timestamps (pre-UTC migration state files) to UTC."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
 
 
 class Severity(str, Enum):
@@ -32,7 +39,7 @@ class Evidence:
     kind: str
     content: str
     source: str = ""
-    captured_at: datetime = field(default_factory=datetime.utcnow)
+    captured_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     sensitive: bool = False
 
     def to_dict(self, redact_sensitive: bool = True) -> dict[str, Any]:
@@ -62,7 +69,7 @@ class Finding:
     source: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
     finding_id: str = ""
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def __post_init__(self) -> None:
         if not self.type.strip():
@@ -100,15 +107,15 @@ class Finding:
             else:
                 evidence_data = dict(item)
                 if isinstance(evidence_data.get("captured_at"), str):
-                    evidence_data["captured_at"] = datetime.fromisoformat(
-                        evidence_data["captured_at"]
+                    evidence_data["captured_at"] = _as_utc(
+                        datetime.fromisoformat(evidence_data["captured_at"])
                     )
                 evidence.append(Evidence(**evidence_data))
         values["evidence"] = evidence
         if "created_at" not in values and isinstance(values.get("timestamp"), str):
             values["created_at"] = values["timestamp"]
         if isinstance(values.get("created_at"), str):
-            values["created_at"] = datetime.fromisoformat(values["created_at"])
+            values["created_at"] = _as_utc(datetime.fromisoformat(values["created_at"]))
         known = set(cls.__dataclass_fields__)
         extras = {key: values.pop(key) for key in list(values) if key not in known}
         metadata = dict(values.get("metadata") or {})

@@ -4,6 +4,10 @@ Read-only report/scan surfaces are always available. When a live
 ``ScanOrchestrator`` is attached via ``create_app(orchestrator=...)``, operator
 endpoints (approval queue, steering, agent status) are enabled. All state-
 changing endpoints fail closed without an attached scan.
+
+Roles: ``DASHBOARD_AUTH_TOKEN`` grants full operator access. An optional
+``DASHBOARD_VIEWER_TOKEN`` grants read-only access to report/scan/agent
+surfaces; it is rejected on approval and steering endpoints.
 """
 
 from __future__ import annotations
@@ -31,15 +35,25 @@ def create_app(orchestrator: ScanOrchestrator | None = None) -> FastAPI:
     app = FastAPI(title="NetworkForgeAI Dashboard")
     report_dir = Path(os.getenv("REPORT_OUTPUT_DIR", "./reports"))
     expected_token = os.getenv("DASHBOARD_AUTH_TOKEN", "")
+    viewer_token = os.getenv("DASHBOARD_VIEWER_TOKEN", "")
     scan = orchestrator
 
-    def authorize(authorization: str | None) -> None:
-        if (
-            not expected_token
-            or expected_token == "changeme"
-            or authorization != f"Bearer {expected_token}"
-        ):
+    def authorize(authorization: str | None, required_role: str = "operator") -> None:
+        if authorization is None:
             raise HTTPException(status_code=401, detail="Unauthorized")
+        if (
+            expected_token
+            and expected_token != "changeme"
+            and (authorization == f"Bearer {expected_token}")
+        ):
+            return
+        if (
+            required_role == "viewer"
+            and viewer_token
+            and (authorization == f"Bearer {viewer_token}" and viewer_token != expected_token)
+        ):
+            return
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
     def require_scan() -> ScanOrchestrator:
         if scan is None:
@@ -63,7 +77,7 @@ def create_app(orchestrator: ScanOrchestrator | None = None) -> FastAPI:
 
     @app.get("/reports")
     def reports(authorization: str | None = Header(default=None)) -> dict[str, Any]:
-        authorize(authorization)
+        authorize(authorization, required_role="viewer")
         report_dir.mkdir(parents=True, exist_ok=True)
         return {"reports": _relative_files(report_dir)}
 
@@ -71,7 +85,7 @@ def create_app(orchestrator: ScanOrchestrator | None = None) -> FastAPI:
     def report_detail(
         report_path: str, authorization: str | None = Header(default=None)
     ) -> dict[str, Any]:
-        authorize(authorization)
+        authorize(authorization, required_role="viewer")
         requested = _safe_child(report_dir, report_path)
         if not requested.is_file():
             raise HTTPException(status_code=404, detail="Report not found")
@@ -85,7 +99,7 @@ def create_app(orchestrator: ScanOrchestrator | None = None) -> FastAPI:
 
     @app.get("/scans")
     def scans(authorization: str | None = Header(default=None)) -> dict[str, Any]:
-        authorize(authorization)
+        authorize(authorization, required_role="viewer")
         entries = []
         for state_file in report_dir.glob("*/scan_state.json"):
             try:
@@ -106,7 +120,7 @@ def create_app(orchestrator: ScanOrchestrator | None = None) -> FastAPI:
     def scan_detail(
         scan_id: str, authorization: str | None = Header(default=None)
     ) -> dict[str, Any]:
-        authorize(authorization)
+        authorize(authorization, required_role="viewer")
         state_file = _safe_child(report_dir, f"{scan_id}/scan_state.json")
         if not state_file.is_file():
             raise HTTPException(status_code=404, detail="Scan not found")
@@ -120,7 +134,7 @@ def create_app(orchestrator: ScanOrchestrator | None = None) -> FastAPI:
     def scan_findings(
         scan_id: str, authorization: str | None = Header(default=None)
     ) -> dict[str, Any]:
-        authorize(authorization)
+        authorize(authorization, required_role="viewer")
         findings_file = _safe_child(report_dir, f"{scan_id}/findings.json")
         if not findings_file.is_file():
             raise HTTPException(status_code=404, detail="Findings not found")
@@ -132,7 +146,7 @@ def create_app(orchestrator: ScanOrchestrator | None = None) -> FastAPI:
 
     @app.get("/agents")
     def agents(authorization: str | None = Header(default=None)) -> dict[str, Any]:
-        authorize(authorization)
+        authorize(authorization, required_role="viewer")
         live = require_scan()
         rows = [
             {

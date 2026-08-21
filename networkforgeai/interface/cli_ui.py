@@ -7,7 +7,7 @@ prompts reject the request instead of allowing it.
 from __future__ import annotations
 
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import IO
 
 from ..core.approval_gateway import ApprovalGateway, ApprovalRequest, ApprovalStatus
@@ -48,7 +48,7 @@ class ApprovalPrompt:
     def _render(self, request: ApprovalRequest) -> None:
         print(file=self.stream)
         print(
-            f"[{datetime.utcnow().isoformat(timespec='seconds')}Z] Approval request {request.id}",
+            f"[{datetime.now(timezone.utc).isoformat(timespec='seconds')}Z] Approval request {request.id}",
             file=self.stream,
         )
         print(f"  Action : {request.action_type}", file=self.stream)

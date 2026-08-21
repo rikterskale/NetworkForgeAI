@@ -77,9 +77,9 @@ class ReconAgent(BaseAgent):
 
         finally:
             self.status = AgentStatus.IDLE
-            from datetime import datetime
+            from datetime import datetime, timezone
 
-            self.last_active = datetime.utcnow()
+            self.last_active = datetime.now(timezone.utc)
 
         return results
 

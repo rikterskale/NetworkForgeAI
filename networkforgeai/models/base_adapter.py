@@ -11,7 +11,7 @@ Provides unified interface for:
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, AsyncIterator, Dict, List, Optional
 
@@ -117,7 +117,7 @@ class ModelResponse:
     finish_reason: str
     tool_calls: Optional[List[Dict[str, Any]]] = None
     raw_response: Optional[Dict[str, Any]] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @property
     def prompt_tokens(self) -> int:

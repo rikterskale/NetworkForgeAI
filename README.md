@@ -212,6 +212,8 @@ jobs:
 - [Configuration Reference](docs/configuration.md)
 - [CLI Reference and Beginner Workflows](docs/cli-reference.md)
 - [Troubleshooting Guide](docs/troubleshooting.md)
+- [Example Scan Scenarios](docs/scenarios.md)
+- [Deployment Guide](docs/deployment.md)
 - [Agent System](docs/agents.md)
 - [Approval Workflow](docs/approval-system.md)
 - [Reporting Guide](docs/reporting.md)

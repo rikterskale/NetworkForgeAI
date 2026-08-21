@@ -86,13 +86,16 @@ Changing the mode does not expand scope or remove high/critical fail-closed rule
 | Variable | Default | Purpose |
 |---|---|---|
 | `DASHBOARD_PORT` | `8080` | Local dashboard port |
-| `DASHBOARD_AUTH_TOKEN` | empty | Bearer token for protected endpoints |
+| `DASHBOARD_AUTH_TOKEN` | empty | Operator bearer token (full access) |
+| `DASHBOARD_VIEWER_TOKEN` | empty | Optional read-only viewer token (reports, scans, agents; no approvals or steering) |
 | `CAIDO_WEB_PORT` | `8090` | Optional Caido web port in Compose |
 | `CAIDO_PROXY_PORT` | `8091` | Optional Caido proxy port in Compose |
 | `CAIDO_LICENSE` | empty | Optional Caido license |
 
 Use a long random dashboard token. An empty token or the literal `changeme` does
-not authorize protected dashboard requests.
+not authorize protected dashboard requests. If `DASHBOARD_VIEWER_TOKEN` is set
+(and differs from the operator token), it authorizes only the read-only report,
+scan, and agent surfaces; approval and steering endpoints reject it with 401.
 
 ### Reporting and runtime
 

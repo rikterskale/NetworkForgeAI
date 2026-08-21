@@ -91,7 +91,7 @@
 | TLS-003 | Nikto web scanner | ✅ | Python wrapper with JSON/text parsing |
 | TLS-004 | SQLmap integration | ✅ | Python wrapper (HITL required) |
 | TLS-005 | Hydra credential testing | ✅ | Python wrapper (HITL required) |
-| TLS-006 | Metasploit Framework | 📋 | Docker container execution |
+| TLS-006 | Metasploit Framework | ✅ | `tools/metasploit_tool.py`: msfconsole resource scripts in the Docker sandbox; CRITICAL risk, always HITL; `check_only` mode |
 | TLS-007 | CrackMapExec | ✅ | Python wrapper (HITL required) |
 | TLS-008 | Impacket suite | ✅ | Multi-tool wrapper (HITL required) |
 
@@ -131,7 +131,7 @@
 - **ToolRiskLevel**: LOW/MEDIUM/HIGH/CRITICAL classification
 - **ToolCategory**: NETWORK_SCAN, WEB_SCAN, PASSWORD_ATTACK, etc.
 
-#### Implemented Tools (8 Total)
+#### Implemented Tools (9 Total)
 1. **NmapTool** - Network scanning with service detection
 2. **MasscanTool** - High-speed port scanning
 3. **NiktoTool** - Web server vulnerability scanning
@@ -140,6 +140,7 @@
 6. **HydraTool** - Online password cracking (HIGH risk, HITL required)
 7. **CrackMapExecTool** - Network exploitation (HIGH risk, HITL required)
 8. **ImpacketTools** - SMB/LDAP protocol tools (HIGH risk, HITL required)
+9. **MetasploitTool** - Exploitation console (CRITICAL risk, HITL required)
 
 #### Safety Features Implemented
 - ✅ Target validation before execution
@@ -200,14 +201,14 @@
 |----|---------|--------|------------|
 | GUI-001 | React frontend application | ✅ | Dependency-free single-file operator console at `GET /` (Option A; no build chain) |
 | GUI-002 | Live scan monitoring | ✅ | `/agents` + operator console polling |
-| GUI-003 | Agent graph visualization | 🚧 | Agent status table shipped; graph rendering pending |
+| GUI-003 | Agent graph visualization | ✅ | Dependency-free SVG graph (scan node + per-agent status nodes) in the operator console |
 | GUI-004 | Approval workflow UI | ✅ | Approval queue with approve/reject in console; audited via gateway |
 | GUI-005 | Findings dashboard | ✅ | Read-only persisted scan summaries (`/scans`, `/scans/{id}/findings`) |
 | GUI-006 | Report generator | ✅ | Read-only report discovery and retrieval |
 | GUI-007 | Historical runs browser | ✅ | Scan state listing endpoint |
 | GUI-008 | Steering controls | ✅ | Pause/resume/emergency-stop via `/scan/*` endpoints; fail closed without live scan |
-| GUI-009 | User authentication | 📋 | Token-based auth |
-| GUI-010 | Role-based access control | 📋 | Admin/Operator/Viewer roles |
+| GUI-009 | User authentication | ✅ | Bearer-token auth enforced fail-closed; optional read-only viewer token |
+| GUI-010 | Role-based access control | ✅ | Operator vs viewer roles via `DASHBOARD_AUTH_TOKEN` / `DASHBOARD_VIEWER_TOKEN`; steering and approvals operator-only |
 
 ### Terminal UI (TUI)
 | ID | Feature | Status | Notes |
@@ -346,8 +347,8 @@ installed in CI so optional provider adapters typecheck against real stubs.
 
 - [x] Publish installation and configuration guides.
 - [x] Document CLI workflows and approval behavior.
-- [x] Add architecture, API, security-model, and deployment references. (all ✅; deployment covered in installation/architecture docs)
-- [ ] Create example scan scenarios and operator training material.
+- [x] Add architecture, API, security-model, and deployment references. (all ✅; deployment covered in `docs/deployment.md`)
+- [x] Create example scan scenarios and operator training material. (`docs/scenarios.md`)
 
 ### Technical Documentation
 | ID | Document | Status | Audience |
@@ -356,7 +357,7 @@ installed in CI so optional provider adapters typecheck against real stubs.
 | DOC-102 | API reference | ✅ | `docs/api-reference.md` (reporting, validation, safety core, orchestration, integrations) |
 | DOC-103 | Contributing guide | ✅ | `CONTRIBUTING.md` (safety invariants, quality gates, conventions) |
 | DOC-104 | Security model whitepaper | ✅ | `SECURITY.md`, `docs/ethics.md`, `docs/approval-system.md` |
-| DOC-105 | Deployment guide | 🚧 | Docker/compose files documented in `docs/installation.md`; production deployment not yet written |
+| DOC-105 | Deployment guide | ✅ | `docs/deployment.md` (production shapes, hardening, storage, upgrade/rollback) |
 
 ### Training Materials
 | ID | Material | Status | Format |
@@ -364,7 +365,7 @@ installed in CI so optional provider adapters typecheck against real stubs.
 | TRN-001 | Video tutorials | 🔍 | YouTube/Loom |
 | TRN-002 | Interactive labs | 🔍 | Docker-based scenarios |
 | TRN-003 | Certification program | 🔍 | Future consideration |
-| TRN-004 | Example scan scenarios | 📋 | Pre-configured targets |
+| TRN-004 | Example scan scenarios | ✅ | `docs/scenarios.md` (six guided, safety-first exercises) |
 
 ---
 
@@ -428,13 +429,17 @@ installed in CI so optional provider adapters typecheck against real stubs.
 
 ## 🎯 Next Priority Items
 
-Based on current progress (Phase 9 active), the following capabilities are highest priority:
+Based on current progress (Phase 9 documentation complete; Phases 5–7 partially
+delivered), the following capabilities are highest priority:
 
-1. **LLM-001 to LLM-004**: Implement model adapters for major providers (Phase 4)
-2. **AIC-001 to AIC-008**: Build AI capabilities for agent reasoning (Phase 4)
-3. **CLI-001 to CLI-004**: Build command-line interface with approval workflows (Phase 5)
-4. **GUI-001 to GUI-005**: Develop web dashboard MVP (Phase 5)
-5. **VAL-001 to VAL-003**: Create PoC generation and validation engine (requires Phase 4)
+1. **RPT-005**: PDF executive-summary reports (Phase 6)
+2. **INT-102**: Microsoft Teams notifications over the shared HTTPS transport (Phase 7)
+3. **TLS-102**: OWASP ZAP-style browser automation / custom Playwright integration (Phase 3, TLS-104)
+4. **CICD-002**: GitLab CI findings gate parity with the GitHub Actions workflow (Phase 7)
+
+Previously listed items (LLM adapters, CLI, dashboard MVP, validation engine,
+dashboard RBAC, agent graph, Metasploit) are complete and tracked in their phase
+tables above.
 
 ---
 
@@ -442,6 +447,10 @@ Based on current progress (Phase 9 active), the following capabilities are highe
 
 | Date | Phase | Changes |
 |------|-------|---------|
+| Current Session | Phase 3 (cont.) | ✅ TLS-006 Metasploit integration: msfconsole resource scripts executed only in the Docker sandbox, CRITICAL risk with mandatory HITL approval and `check_only` mode |
+| Current Session | Phase 5 (cont.) | ✅ GUI-003 agent graph visualization: dependency-free SVG scan/agent topology in the operator console |
+| Current Session | Phase 5 (cont.) | ✅ GUI-009/GUI-010: dashboard RBAC — optional `DASHBOARD_VIEWER_TOKEN` grants read-only access to reports/scans/agents; approvals and steering remain operator-only |
+| Current Session | Phase 9 (cont.) | ✅ DOC-105 deployment guide (`docs/deployment.md`) and TRN-004 example scan scenarios (`docs/scenarios.md`); "Next Priority Items" refreshed |
 | Current Session | Phase 5 (cont.) | ✅ Dashboard API: approval queue, steering controls, agent status, per-scan findings endpoints; dependency-free operator console at `GET /` (GUI-001/002/004/005/006/007/008) |
 | Current Session | Phase 9 (cont.) | ✅ Documentation audit: historical PHASE*.md snapshots archived to `docs/history/`; DOC-002/003/004/006/007 verified against code and marked complete; installation guide updated with `[llm]` contributor extra |
 | Current Session | Phase 7 (cont.) | ✅ INT-004 Jira issue creation and INT-101 Slack finding summaries via shared HTTPS-only JSON transport (`integrations/notifications.py`) |

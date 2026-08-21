@@ -152,7 +152,8 @@ def test_agent_message_and_approval_branches():
 
 
 def test_registry_exports_and_recon_empty_paths():
-    assert len(get_available_tools()) == 8
+    assert len(get_available_tools()) == 9
+    assert get_tool_by_name("metasploit").name == "metasploit"
     assert get_tool_by_name("nmap").name == "nmap"
     with pytest.raises(ValueError):
         get_tool_by_name("missing")
@@ -170,3 +171,30 @@ def test_registry_exports_and_recon_empty_paths():
         assert (await scanner.execute("scan_auth_bypass", {}))["findings"] == []
 
     run(scenario())
+
+
+def test_approval_request_round_trips_legacy_naive_timestamps():
+
+    request = ApprovalRequest(
+        agent_id="a1",
+        action_type="exploit",
+        description="d",
+        target="t",
+    )
+    data = request.to_dict()
+    # Simulate state persisted before the UTC migration: naive ISO timestamps.
+    data["created_at"] = data["created_at"].replace("+00:00", "")
+
+    restored = ApprovalRequest.from_dict(data)
+    assert restored.created_at.tzinfo is not None
+    assert restored.created_at == request.created_at
+
+
+def test_orchestrator_compat_import_path():
+    """The legacy import path must keep re-exporting the core gateway."""
+    from networkforgeai.core.approval_gateway import ApprovalGateway as CoreGateway
+    from networkforgeai.orchestrator.approval_gateway import (
+        ApprovalGateway as CompatGateway,
+    )
+
+    assert CompatGateway is CoreGateway

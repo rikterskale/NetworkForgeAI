@@ -9,7 +9,7 @@ import asyncio
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -36,8 +36,8 @@ class AgentState:
     status: AgentStatus
     current_task: Optional[str] = None
     findings: List[Dict[str, Any]] = field(default_factory=list)
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    last_active: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    last_active: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     context_summary: str = ""
 
 
@@ -76,8 +76,8 @@ class BaseAgent(ABC):
         self.findings: List[Dict[str, Any]] = []
         self.mailbox: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
         self._stop_requested = False
-        self.created_at = datetime.utcnow()
-        self.last_active = datetime.utcnow()
+        self.created_at = datetime.now(timezone.utc)
+        self.last_active = datetime.now(timezone.utc)
         self.context_summary = ""
 
     @abstractmethod
@@ -140,7 +140,7 @@ class BaseAgent(ABC):
         # Wait for decision
         final_request = await self.approval_gateway.wait_for_approval(request.id)
 
-        self.last_active = datetime.utcnow()
+        self.last_active = datetime.now(timezone.utc)
 
         if final_request.status == ApprovalStatus.APPROVED:
             self.status = AgentStatus.RUNNING
@@ -153,9 +153,9 @@ class BaseAgent(ABC):
         """Add a validated finding to the agent's collection."""
         finding["agent_id"] = self.id
         finding["agent_name"] = self.name
-        finding["timestamp"] = datetime.utcnow().isoformat()
+        finding["timestamp"] = datetime.now(timezone.utc).isoformat()
         self.findings.append(finding)
-        self.last_active = datetime.utcnow()
+        self.last_active = datetime.now(timezone.utc)
 
     def get_findings(self) -> List[Dict[str, Any]]:
         """Return all findings collected by this agent."""

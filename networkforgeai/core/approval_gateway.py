@@ -9,10 +9,17 @@ import asyncio
 import json
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, Optional
+
+
+def _as_utc(value: datetime) -> datetime:
+    """Coerce legacy naive timestamps (pre-UTC migration state files) to UTC."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
 
 
 class ApprovalStatus(Enum):
@@ -41,7 +48,7 @@ class ApprovalRequest:
     target: str = ""
     risk_level: RiskLevel = RiskLevel.LOW
     details: Dict[str, Any] = field(default_factory=dict)
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     expires_at: Optional[datetime] = None
     status: ApprovalStatus = ApprovalStatus.PENDING
     approver_id: Optional[str] = None
@@ -77,13 +84,13 @@ class ApprovalRequest:
             target=data["target"],
             risk_level=RiskLevel(data["risk_level"]),
             details=data["details"],
-            created_at=datetime.fromisoformat(data["created_at"]),
-            expires_at=datetime.fromisoformat(data["expires_at"])
+            created_at=_as_utc(datetime.fromisoformat(data["created_at"])),
+            expires_at=_as_utc(datetime.fromisoformat(data["expires_at"]))
             if data.get("expires_at")
             else None,
             status=ApprovalStatus(data["status"]),
             approver_id=data.get("approver_id"),
-            approved_at=datetime.fromisoformat(data["approved_at"])
+            approved_at=_as_utc(datetime.fromisoformat(data["approved_at"]))
             if data.get("approved_at")
             else None,
             rejection_reason=data.get("rejection_reason"),
@@ -150,7 +157,7 @@ class ApprovalGateway:
             target=target,
             risk_level=risk_level,
             details=details or {},
-            expires_at=datetime.utcnow() + timedelta(seconds=timeout_seconds),
+            expires_at=datetime.now(timezone.utc) + timedelta(seconds=timeout_seconds),
         )
 
         async with self._lock:
@@ -193,7 +200,7 @@ class ApprovalGateway:
 
             request.status = ApprovalStatus.APPROVED
             request.approver_id = approver_id
-            request.approved_at = datetime.utcnow()
+            request.approved_at = datetime.now(timezone.utc)
             request.response_data = response_data
 
         self._audit(request)
@@ -248,7 +255,7 @@ class ApprovalGateway:
                     return request
 
                 # Check expiration
-                if request.expires_at and datetime.utcnow() > request.expires_at:
+                if request.expires_at and datetime.now(timezone.utc) > request.expires_at:
                     request.status = ApprovalStatus.EXPIRED
                     return request
 
@@ -277,7 +284,7 @@ class ApprovalGateway:
 
     def clear_expired(self) -> None:
         """Remove expired requests from memory."""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         expired = [
             rid for rid, req in self.requests.items() if req.expires_at and now > req.expires_at
         ]

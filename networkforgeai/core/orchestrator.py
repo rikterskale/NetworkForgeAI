@@ -9,13 +9,13 @@ import asyncio
 import json
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ..reporting import to_csv, to_json, to_sarif
-from .approval_gateway import ApprovalGateway
+from .approval_gateway import ApprovalGateway, _as_utc
 from .base_agent import AgentState, AgentStatus, BaseAgent
 from .knowledge_base import KnowledgeBase
 from .message_bus import MessageBus
@@ -128,7 +128,7 @@ class ScanOrchestrator:
         if self.status not in {ScanStatus.PENDING, ScanStatus.PAUSED}:
             raise RuntimeError(f"Cannot start scan from status {self.status.value}")
         self.status = ScanStatus.RUNNING
-        self.started_at = datetime.utcnow()
+        self.started_at = datetime.now(timezone.utc)
         for agent in self.agents.values():
             await self.message_bus.register(agent.id)
 
@@ -146,7 +146,7 @@ class ScanOrchestrator:
     async def _log_approval_request(self, request: Any) -> None:
         """Log all approval requests for audit trail."""
         self.approval_log.append(
-            {"timestamp": datetime.utcnow().isoformat(), "request": request.to_dict()}
+            {"timestamp": datetime.now(timezone.utc).isoformat(), "request": request.to_dict()}
         )
         await self._save_state()
 
@@ -203,12 +203,12 @@ class ScanOrchestrator:
                 await self._execute_phase(post_exploit_agents, "post_exploitation")
 
             self.status = ScanStatus.COMPLETED
-            self.completed_at = datetime.utcnow()
+            self.completed_at = datetime.now(timezone.utc)
             print(f"[Orchestrator] Scan completed. Found {len(self.findings)} vulnerabilities.")
 
         except Exception as e:
             self.status = ScanStatus.ERROR
-            self.completed_at = datetime.utcnow()
+            self.completed_at = datetime.now(timezone.utc)
             print(f"[Orchestrator] Scan failed with error: {e}")
             raise
         finally:
@@ -259,7 +259,7 @@ class ScanOrchestrator:
     def add_finding(self, finding: dict[str, Any]) -> None:
         """Add a finding to the global collection."""
         finding["scan_id"] = self.scan_id
-        finding["timestamp"] = datetime.utcnow().isoformat()
+        finding["timestamp"] = datetime.now(timezone.utc).isoformat()
         self.findings.append(finding)
 
     def get_all_findings(self) -> List[Dict[str, Any]]:
@@ -296,7 +296,7 @@ class ScanOrchestrator:
             agent.stop()
             await agent.cleanup()
         self.status = ScanStatus.CANCELLED
-        self.completed_at = datetime.utcnow()
+        self.completed_at = datetime.now(timezone.utc)
         await self._save_state()
         print("[Orchestrator] Scan stopped")
 
@@ -439,10 +439,12 @@ class ScanOrchestrator:
         orchestrator.scan_id = scan_id
         orchestrator.status = ScanStatus(state["status"])
         orchestrator.started_at = (
-            datetime.fromisoformat(state["started_at"]) if state["started_at"] else None
+            _as_utc(datetime.fromisoformat(state["started_at"])) if state["started_at"] else None
         )
         orchestrator.completed_at = (
-            datetime.fromisoformat(state["completed_at"]) if state["completed_at"] else None
+            _as_utc(datetime.fromisoformat(state["completed_at"]))
+            if state["completed_at"]
+            else None
         )
         orchestrator.shared_context = state["shared_context"]
         orchestrator.approval_log = state["approval_log"]

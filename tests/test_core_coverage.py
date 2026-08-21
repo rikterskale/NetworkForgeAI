@@ -1,6 +1,6 @@
 import asyncio
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -172,7 +172,7 @@ def test_approval_gateway_modes_expiration_and_reset():
         assert low.status is ApprovalStatus.APPROVED
         medium = await auto.request_approval("a", "scan", "d", "t", RiskLevel.MEDIUM)
         assert medium.status is ApprovalStatus.PENDING
-        medium.expires_at = datetime.utcnow() - timedelta(seconds=1)
+        medium.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
         assert (
             await auto.wait_for_approval(medium.id, poll_interval=0)
         ).status is ApprovalStatus.EXPIRED
@@ -478,7 +478,7 @@ def test_password_tools_build_and_parse_commands():
 
 
 def test_tool_result_and_retry_terminal_failure():
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     result = ToolResult(
         "tool", "tool target", 0, "out", "", now, now, ToolRiskLevel.LOW, ToolCategory.REPORTING
     )

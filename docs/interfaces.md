@@ -24,7 +24,13 @@ attempts to escape that directory is rejected.
 ## Dashboard API
 
 The dashboard requires `Authorization: Bearer <token>` for all endpoints except
-`/health` and the operator console shell:
+`/health` and the operator console shell. Two roles exist:
+
+- **Operator** (`DASHBOARD_AUTH_TOKEN`): full access, including approvals and steering.
+- **Viewer** (`DASHBOARD_VIEWER_TOKEN`, optional): read-only access to `/reports`,
+  `/scans`, and `/agents`; approval and steering endpoints return `401`.
+
+Read-only surfaces:
 
 - `GET /health` — liveness response.
 - `GET /` — dependency-free operator console (static shell; no data without a token).

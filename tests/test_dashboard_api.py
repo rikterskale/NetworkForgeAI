@@ -162,5 +162,50 @@ def test_operator_console_shell_served_without_data(client):
     assert response.status_code == 200
     body = response.text
     assert "Operator Console" in body
+    assert 'id="agentgraph"' in body  # GUI-003: agent graph canvas present
     assert "test-token-123" not in body  # no secrets baked into the shell
     assert "example.com" not in body  # no data in the static shell
+
+
+@pytest.fixture()
+def viewer_client(env, monkeypatch):
+    monkeypatch.setenv("DASHBOARD_VIEWER_TOKEN", "viewer-token-456")
+    return TestClient(create_app(orchestrator=FakeOrchestrator()))
+
+
+VIEWER_AUTH = {"Authorization": "Bearer viewer-token-456"}
+
+
+def test_viewer_token_reads_reports_scans_and_agents(env, viewer_client):
+    scan_dir = env / "scan-7"
+    scan_dir.mkdir(parents=True)
+    (scan_dir / "findings.json").write_text("[]")
+    (scan_dir / "scan_state.json").write_text('{"scan_id": "scan-7", "status": "complete"}')
+    for path in ["/scans", "/scans/scan-7", "/scans/scan-7/findings", "/agents"]:
+        assert viewer_client.get(path, headers=VIEWER_AUTH).status_code == 200, path
+
+
+def test_viewer_token_cannot_mutate_or_approve(viewer_client):
+    for method, path in [
+        ("get", "/approvals"),
+        ("post", "/approvals/req/approve"),
+        ("post", "/approvals/req/reject"),
+        ("post", "/scan/pause"),
+        ("post", "/scan/resume"),
+        ("post", "/scan/stop"),
+    ]:
+        response = getattr(viewer_client, method)(path, headers=VIEWER_AUTH)
+        assert response.status_code == 401, path
+
+
+def test_operator_token_still_has_full_access(viewer_client):
+    assert viewer_client.get("/agents", headers=AUTH).status_code == 200
+    assert viewer_client.get("/approvals", headers=AUTH).status_code == 200
+
+
+def test_viewer_role_requires_distinct_token(env, monkeypatch):
+    # If the viewer token equals the operator token it grants nothing extra and
+    # a missing token still fails closed.
+    monkeypatch.setenv("DASHBOARD_VIEWER_TOKEN", "test-token-123")
+    client = TestClient(create_app())
+    assert client.get("/reports").status_code == 401

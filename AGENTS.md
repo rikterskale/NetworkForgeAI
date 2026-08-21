@@ -2,11 +2,12 @@
 
 ## Commands
 
+- Install: `pip install -e '.[dev,runtime,llm]'` (or `make install`). mypy --strict needs LLM SDK stubs from `.[llm]`.
 - `make ci` — full local gate: `lint test typecheck security docs readiness` (default goal). Run this before finishing work.
 - `make lint` / `make format` — ruff check + format over `networkforgeai tests tools`. Line length 100, isort rules on.
 - `make test` — pytest with coverage; **fails under 90% coverage** (`--cov-fail-under=90`).
 - Single test: `python -m pytest tests/test_scope.py -q` (pytest-asyncio in auto mode).
-- `make typecheck` — `mypy --strict networkforgeai` over the whole package. LLM SDK stubs (`.[llm]` extra: openai, anthropic, google-generativeai) must be installed or adapter imports fail typecheck.
+- `make typecheck` — `mypy --strict networkforgeai` over the whole package.
 - `make security` — bandit + pip-audit. Bandit excludes `tests/`.
 - `make readiness` / `make readiness-strict` — user-readiness gate (`tools/user_readiness.py`).
 - `make findings-gate INPUT=path.json` — findings policy gate (`tools/ci_findings_gate.py`); requires INPUT var.

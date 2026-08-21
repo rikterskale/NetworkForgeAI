@@ -1,7 +1,13 @@
 import pytest
 
 from networkforgeai.core.scope import ScopePolicy
-from networkforgeai.tools import HydraTool, NmapTool
+from networkforgeai.tools import (
+    CrackMapExecTool,
+    HydraTool,
+    ImpacketTools,
+    MetasploitTool,
+    NmapTool,
+)
 
 
 def test_tool_requires_explicit_scope():
@@ -31,3 +37,131 @@ def test_sandbox_execution_fails_closed_without_configured_image():
     result = tool.execute("example.com")
     assert result.exit_code == -1
     assert "SANDBOX_IMAGE" in result.stderr
+
+
+def test_metasploit_requires_approval_gateway():
+    tool = MetasploitTool()
+    tool.scope_policy = ScopePolicy(["example.com"])
+    with pytest.raises(PermissionError):
+        tool.execute("example.com", {"module": "exploit/test/module"})
+
+
+def test_metasploit_dry_run_is_allowed_without_gateway():
+    tool = MetasploitTool(dry_run=True)
+    tool.scope_policy = ScopePolicy(["example.com"])
+    result = tool.execute("example.com", {"module": "exploit/test/module"})
+    assert result.success
+    assert "[DRY RUN]" in result.stdout
+
+
+def test_metasploit_requires_module_option():
+    with pytest.raises(ValueError):
+        MetasploitTool().build_command("example.com", {})
+
+
+def test_metasploit_builds_resource_script():
+    cmd = MetasploitTool().build_command(
+        "example.com",
+        {
+            "module": "exploit/test/module",
+            "payload": "cmd/unix/reverse_bash",
+            "set_options": {"LPORT": 4444},
+        },
+    )
+    assert cmd[:2] == ["msfconsole", "-q"]
+    script = cmd[3]
+    assert "use exploit/test/module" in script
+    assert "set RHOSTS example.com" in script
+    assert "set PAYLOAD cmd/unix/reverse_bash" in script
+    assert "set LPORT 4444" in script
+    assert script.rstrip().endswith("; exit")
+
+
+def test_metasploit_check_only_runs_check():
+    script = MetasploitTool().build_command(
+        "example.com", {"module": "auxiliary/x", "check_only": True}
+    )[3]
+    assert "check" in script and "; run;" not in script
+
+
+def test_metasploit_parses_sessions_and_checks():
+    tool = MetasploitTool()
+    stdout = (
+        "[*] 1.2.3.4:445 - Vulnerable target\n"
+        "Meterpreter session 3 opened\n"
+        "check: not vulnerable here"
+    )
+    findings = {f["type"]: f for f in tool.parse_findings(stdout, "")}
+    assert findings["session_opened"]["session_id"] == 3
+    assert findings["confirmed_vulnerability"]["target"] == "1.2.3.4:445"
+    assert findings["module_check_negative"]["confidence"] == "medium"
+    assert tool.parse_findings("", "") == []
+
+
+def test_hydra_requires_credentials():
+    with pytest.raises(ValueError):
+        HydraTool().build_command("example.com", {})
+    cmd = HydraTool().build_command("example.com", {"userlist": "u.txt", "passlist": "p.txt"})
+    assert "-L u.txt" in " ".join(cmd) and "-P p.txt" in " ".join(cmd)
+    cmd = HydraTool().build_command(
+        "example.com", {"username": "root", "password": "pw", "port": 2222, "verbose": True}
+    )
+    joined = " ".join(cmd)
+    assert "-l root" in joined and "-p pw" in joined and "-s 2222" in joined and "-v" in joined
+
+
+def test_hydra_parses_credential_findings_without_duplicates():
+    tool = HydraTool()
+    stdout = (
+        "[ssh] host: 1.2.3.4 login: root password: secret\n"
+        "login: admin password: hunter2\n"
+        "login: admin password: hunter2\n"
+    )
+    findings = tool.parse_findings(stdout, "")
+    creds = [(f["username"], f["password"]) for f in findings]
+    assert ("root", "secret") in creds
+    assert ("admin", "hunter2") in creds
+    assert creds.count(("admin", "hunter2")) == 1
+
+
+def test_crackmapexec_build_options_and_parse():
+    tool = CrackMapExecTool()
+    cmd = tool.build_command(
+        "1.2.3.4",
+        {
+            "protocol": "winrm",
+            "username": "svc",
+            "hashes": "aad3b",
+            "local_auth": True,
+            "shares": True,
+            "users": True,
+            "passes": True,
+            "command": "whoami",
+        },
+    )
+    joined = " ".join(cmd)
+    assert "winrm" in joined
+    assert "-u svc" in joined and "-H aad3b" in joined
+    for flag in ["--local-auth", "--shares", "--users", "--pass-pol", "-x", "whoami"]:
+        assert flag in joined
+
+    findings = tool.parse_findings("[++] 1.2.3.4:5985 svc:CORP\nREAD\tShare$", "")
+    types = [f["type"] for f in findings]
+    assert "successful_auth" in types and "share_access" in types
+
+
+def test_impacket_tool_selection_and_parsing():
+    tool = ImpacketTools()
+    with pytest.raises(ValueError):
+        tool.build_command("1.2.3.4", {"tool": "missing"})
+    cmd = tool.build_command(
+        "1.2.3.4", {"tool": "secretsdump", "username": "svc", "password": "pw", "domain": "CORP"}
+    )
+    assert cmd[0] == "secretsdump"
+    assert "-credentials svc:pw" in " ".join(cmd) and "-domain CORP" in " ".join(cmd)
+    no_pass = tool.build_command("1.2.3.4", {"no_pass": True})
+    assert "-no-pass" in " ".join(no_pass)
+
+    findings = tool.parse_findings("Session established\nCORP\\alice (admin)", "")
+    types = sorted(f["type"] for f in findings)
+    assert types == ["connection_success", "user_enumerated"]
