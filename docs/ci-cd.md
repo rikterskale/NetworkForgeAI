@@ -25,3 +25,13 @@ generation, authenticated read-only dashboard behavior, scope denial, approval
 fail-closed behavior, secret-free example configuration, and deployment
 configuration. Optional checks are explicitly reported as skipped when their
 runtime dependency is unavailable; CI installs the full runtime set.
+
+For deployment policy enforcement, run the findings gate against a JSON or SARIF
+report:
+
+```bash
+make findings-gate INPUT=./scans/<scan-id>/findings.json
+```
+
+The default gate blocks high and critical findings unless they are marked
+remediated or false-positive.

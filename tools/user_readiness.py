@@ -10,6 +10,7 @@ import os
 import shutil
 import subprocess
 import sys
+import textwrap
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -42,7 +43,19 @@ def main() -> int:
     checks: list[dict[str, object]] = []
     python = sys.executable
 
-    run("python compilation", [python, "-m", "compileall", "-q", "networkforgeai", "tests"], checks)
+    compile_script = textwrap.dedent(
+        """
+        import py_compile
+        import tempfile
+        from pathlib import Path
+        root = Path.cwd()
+        sources = [path for folder in ("networkforgeai", "tests", "tools") for path in (root / folder).rglob("*.py")]
+        with tempfile.TemporaryDirectory() as directory:
+            for index, source in enumerate(sources):
+                py_compile.compile(str(source), cfile=str(Path(directory) / f"{index}.pyc"), doraise=True)
+        """
+    )
+    run("python compilation", [python, "-c", compile_script], checks)
     run("CLI help", [python, "-m", "networkforgeai.cli", "--help"], checks)
     run("CLI version", [python, "-m", "networkforgeai.cli", "--version"], checks)
     run("CLI tool inventory", [python, "-m", "networkforgeai.cli", "--list-tools"], checks)
@@ -106,6 +119,14 @@ with TemporaryDirectory() as directory:
         "assert '2.1.0' in to_sarif(f)"
     )
     run("report format generation", [python, "-c", report_format_script], checks)
+
+    gate_script = (
+        "from networkforgeai.reporting import Severity; "
+        "from tools.ci_findings_gate import blocking_findings; "
+        "assert len(blocking_findings([{'type':'x','target':'t','severity':'high'}], Severity.HIGH)) == 1; "
+        "assert not blocking_findings([{'type':'x','target':'t','severity':'critical','status':'remediated'}], Severity.HIGH)"
+    )
+    run("CI findings policy gate", [python, "-c", gate_script], checks)
 
     dashboard_script = """
 import json

@@ -21,6 +21,10 @@ security:
 docs:
 	$(PYTHON) tools/ci_docs_audit.py
 
+findings-gate:
+	@test -n "$(INPUT)" || (echo "Usage: make findings-gate INPUT=path/to/findings.json" && exit 2)
+	$(PYTHON) tools/ci_findings_gate.py "$(INPUT)" --json
+
 readiness:
 	$(PYTHON) tools/user_readiness.py
 
