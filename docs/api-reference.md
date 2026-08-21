@@ -103,6 +103,75 @@ HTTPS-only JSON transport shared by both notifiers; HTTP endpoints raise
 - `WebhookNotifier(endpoint, allow_http=False).send(event) -> int` — explicit
   webhook boundary for CI systems.
 
+### `networkforgeai.integrations.trackers`
+
+Issue-tracker clients (INT-001/002/005/203) sharing the HTTPS-only transport;
+payloads carry sanitized summaries only and tokens are never logged.
+
+- `finding_to_issue_fields(finding) -> dict` — sanitized title/body/severity triple.
+- `select_notable_findings(findings, min_severity=None)` — filters normalized
+  findings (default: critical and high).
+- `GitHubIssueCreator(token, owner, repo, base_url=..., labels=[...])` — REST
+  issue creation against `api.github.com`.
+- `GitLabIssueCreator(token, project_id, base_url=..., labels=[...])` — REST
+  issue creation against `gitlab.com` or a self-hosted instance.
+- `LinearIssueCreator(api_key, team_id)` — GraphQL `issueCreate` mutation.
+- `WebhookTicketClient(endpoint, headers=None)` — generic JSON ticket creation.
+
+All constructors raise `ValueError` on empty tokens or non-HTTPS endpoints.
+
+### `networkforgeai.integrations.email_delivery`
+
+SMTP report delivery (RPT-007 / INT-104).
+
+- `EmailSettings(smtp_host, smtp_port=587, username=None, password=None,
+  from_addr=..., to_addrs=[...], require_tls=True)`
+- `SmtpReportSender(settings, smtp_factory=None).send_report(findings,
+  scan_id=None, extra_body=None) -> EmailMessage`
+
+STARTTLS is negotiated for every submission unless port 465 is used, which
+switches to `SMTP_SSL`. Credentials are never included in message bodies.
+
+## Cloud & directory tools
+
+Wrappers in `networkforgeai.tools.cloud_tools`, all registered in the tool
+inventory and all approval-gated (`requires_approval = True`). Scope
+enforcement is inherited from `BaseTool`: execution fails closed without a
+scope policy.
+
+| Name | Class | Backing binary | Risk |
+|------|-------|----------------|------|
+| `cloud-aws` | `AwsAuditTool` | ScoutSuite (`--provider aws`) | MEDIUM |
+| `cloud-azure` | `AzureAuditTool` | roadrecon | MEDIUM |
+| `cloud-gcp` | `GcpAuditTool` | ScoutSuite (`--provider gcp`) | MEDIUM |
+| `kube-hunter` | `KubernetesHuntTool` | kube-hunter | HIGH |
+| `ad-recon` | `AdReconTool` | bloodhound-python | HIGH |
+
+Example:
+
+```python
+from networkforgeai.core.scope import ScopePolicy
+from networkforgeai.tools import get_tool_by_name
+
+tool = get_tool_by_name("kube-hunter", dry_run=True)
+tool.scope_policy = ScopePolicy(["10.0.0.0/8"])
+result = tool.execute("10.0.0.5", {"mode": "remote", "cis": True})
+```
+
+## Terminal UI
+
+Components in `networkforgeai.interface.tui` — dependency-free ANSI surfaces
+that fail closed in non-interactive sessions (TUI-001..004).
+
+- `TUIDisplay(stream, colors)` — `progress(done, total, label)` bars and
+  `table(headers, rows)` rendering.
+- `LogStreamPanel(stream, colors)` — `log(source, message)` emits level-tagged,
+  color-coded lines tagged ERROR/WARN/APPROVAL/INFO.
+- `InteractiveMenu(title, items, ...)` — number-key navigation; returns `None`
+  when non-interactive.
+- `ApprovalDialog(gateway, stream, interactive)` — boxed HITL dialog usable as
+  an approval-gateway callback; input errors reject the request.
+
 ## Dashboard HTTP API
 
 See [Interface Guide](interfaces.md#dashboard-api) for the full endpoint list.

@@ -208,6 +208,7 @@ jobs:
 
 ## Documentation
 
+- [Changelog](CHANGELOG.md)
 - [Installation Guide](docs/installation.md)
 - [Configuration Reference](docs/configuration.md)
 - [CLI Reference and Beginner Workflows](docs/cli-reference.md)

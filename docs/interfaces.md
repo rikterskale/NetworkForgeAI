@@ -53,3 +53,31 @@ attached scan they return `503` (fail closed):
 Approval decisions made through the dashboard flow through the same human
 approval gateway and audit trail as every other path. The dashboard never
 starts scans.
+
+## Terminal UI (TUI)
+
+`networkforgeai.interface.tui` provides dependency-free terminal surfaces for
+operators who do not use the dashboard:
+
+- **`TUIDisplay`** — progress bars (`display.progress(done, total)`) and aligned
+  tables (`display.table(headers, rows)`), with ANSI color when the stream is a
+  TTY.
+- **`LogStreamPanel`** — `panel.log(source, message)` prints timestamped lines
+  tagged `INFO`, `ERROR`, `WARN`, or `APPROVAL`.
+- **`InteractiveMenu`** — number-key menu; pass `items=[(label, action), ...]`.
+  In non-interactive sessions the menu renders but is disabled.
+- **`ApprovalDialog`** — boxed approval dialog registered like
+  `ApprovalPrompt`: `gateway.register_callback("tui", dialog)`. Any input
+  failure rejects the request, and non-interactive sessions leave requests
+  PENDING (fail closed).
+
+```python
+from networkforgeai.interface.tui import ApprovalDialog, LogStreamPanel, TUIDisplay
+
+display = TUIDisplay()
+panel = LogStreamPanel()
+print(display.progress(3, 10))
+panel.log("recon", "subdomain enumeration finished")
+```
+
+See the [API Reference](api-reference.md#terminal-ui) for constructor details.
