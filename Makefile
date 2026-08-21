@@ -12,7 +12,10 @@ lint:
 	ruff format --check networkforgeai tests tools
 
 test:
-	pytest -q --cov=networkforgeai --cov-report=term-missing --cov-fail-under=90
+	$(PYTHON) -m pytest -q --cov=networkforgeai --cov-report=term-missing --cov-fail-under=90
+
+typecheck:
+	$(PYTHON) -m mypy --strict networkforgeai/__init__.py networkforgeai/core/scope.py networkforgeai/core/approval_gateway.py networkforgeai/reporting/models.py networkforgeai/reporting/generators.py networkforgeai/integrations/webhooks.py networkforgeai/sandbox/runner.py
 
 security:
 	bandit -q -r networkforgeai -ll
@@ -28,4 +31,4 @@ findings-gate:
 readiness:
 	$(PYTHON) tools/user_readiness.py
 
-ci: lint test security docs readiness
+ci: lint test typecheck security docs readiness

@@ -21,11 +21,14 @@ REQUIRED = [
     "docs/ethics.md",
 ]
 LINK_RE = re.compile(r"(?<!!)(?:\[[^\]]*\])\(([^)]+)\)")
+IGNORED_DIRS = {".git", ".venv", "__pycache__"}
 
 
 def audit() -> dict[str, object]:
     errors: list[str] = []
-    markdown = sorted(ROOT.rglob("*.md"))
+    markdown = sorted(
+        path for path in ROOT.rglob("*.md") if not IGNORED_DIRS.intersection(path.parts)
+    )
     for required in REQUIRED:
         if not (ROOT / required).is_file():
             errors.append(f"missing required document: {required}")

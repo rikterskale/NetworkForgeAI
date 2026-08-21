@@ -23,6 +23,7 @@ dev = [
   "bandit>=1.7",
   "black>=24.0",
   "pip-audit>=2.7",
+  "mypy>=1.10",
 ]
 
 [project.scripts]

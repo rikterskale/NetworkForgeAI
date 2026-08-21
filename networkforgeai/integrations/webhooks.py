@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 from urllib.request import Request, urlopen
 
 
@@ -12,10 +13,10 @@ from urllib.request import Request, urlopen
 class WebhookEvent:
     event_type: str
     summary: str
-    payload: dict
+    payload: dict[str, Any]
     created_at: datetime = field(default_factory=datetime.utcnow)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "event_type": self.event_type,
             "summary": self.summary,
@@ -52,4 +53,4 @@ class WebhookNotifier:
             method="POST",
         )
         with urlopen(request, timeout=self.timeout) as response:  # nosec B310 - endpoint scheme validated in __init__
-            return response.status
+            return int(response.status)

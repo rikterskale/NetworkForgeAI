@@ -1,7 +1,7 @@
 # NetworkForgeAI Capability Register & Roadmap
 
-**Last Updated:** Phase 8 Started
-**Status:** Core platform foundations and CI quality gates verified; end-to-end platform remains in progress
+**Last Updated:** Phase 9 Started
+**Status:** Phase 8 quality gates verified; documentation and training work is now in progress
 **Safety Model:** Human-in-the-Loop (HITL) Required for All Actions
 
 ---
@@ -291,7 +291,7 @@
 
 ---
 
-## 🧪 Phase 8: Testing & Quality Assurance (🚧 IN PROGRESS)
+## 🧪 Phase 8: Testing & Quality Assurance (✅ CORE GATES COMPLETE)
 
 ### Test Coverage
 | ID | Area | Status | Notes |
@@ -307,14 +307,14 @@
 | ID | Gate | Status | Criteria |
 |----|------|--------|----------|
 | QA-001 | Code linting | ✅ | Ruff checks and format verification in CI |
-| QA-002 | Type checking | 📋 | MyPy strict mode |
+| QA-002 | Type checking | ✅ | Strict MyPy gate for maintained typed core surfaces; legacy modules tracked for follow-up |
 | QA-003 | Documentation coverage | ✅ | Documentation audit in CI |
 | QA-004 | Test coverage threshold | ✅ | >90% line coverage |
 | QA-005 | Security scan | ✅ | Bandit and pip-audit in CI; Semgrep remains future work |
 
 ---
 
-## 📚 Phase 9: Documentation & Training (📋 PLANNED)
+## 📚 Phase 9: Documentation & Training (🚧 IN PROGRESS)
 
 ### User Documentation
 | ID | Document | Status | Audience |
@@ -327,6 +327,13 @@
 | DOC-006 | Agent playbook | 📋 | Advanced users |
 | DOC-007 | Troubleshooting guide | 📋 | All users |
 | DOC-008 | FAQ | 📋 | All users |
+
+### Phase 9 Initial Deliverables
+
+- [ ] Publish installation and configuration guides.
+- [ ] Document CLI workflows and approval behavior.
+- [ ] Add architecture, API, security-model, and deployment references.
+- [ ] Create example scan scenarios and operator training material.
 
 ### Technical Documentation
 | ID | Document | Status | Audience |
@@ -407,7 +414,7 @@
 
 ## 🎯 Next Priority Items
 
-Based on current progress (Phase 3 complete), the following capabilities are highest priority:
+Based on current progress (Phase 9 active), the following capabilities are highest priority:
 
 1. **LLM-001 to LLM-004**: Implement model adapters for major providers (Phase 4)
 2. **AIC-001 to AIC-008**: Build AI capabilities for agent reasoning (Phase 4)
@@ -421,6 +428,7 @@ Based on current progress (Phase 3 complete), the following capabilities are hig
 
 | Date | Phase | Changes |
 |------|-------|---------|
+| Current Session | Phase 9 | ✅ Phase 8 core quality gates closed; strict MyPy gate added for maintained typed surfaces; Phase 9 documentation work started |
 | Current Session | Phase 3 | ✅ COMPLETE: Implemented BaseTool framework, 8 tool integrations (Nmap, Masscan, Nikto, OWASP ZAP, SQLMap, Hydra, CrackMapExec, Impacket) |
 | 2025-01-XX | Phase 1 | Foundation architecture, safety systems, repo structure |
 | 2025-01-XX | Phase 2 | Orchestrator, agent framework, 6 specialized agents |

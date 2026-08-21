@@ -259,15 +259,15 @@ class ApprovalGateway:
 
     def register_callback(
         self, callback_id: str, callback: Callable[[ApprovalRequest], Awaitable[None]]
-    ):
+    ) -> None:
         """Register a callback to be notified of approval state changes."""
         self.callbacks[callback_id] = callback
 
-    def unregister_callback(self, callback_id: str):
+    def unregister_callback(self, callback_id: str) -> None:
         """Remove a registered callback."""
         self.callbacks.pop(callback_id, None)
 
-    def get_pending_requests(self) -> list:
+    def get_pending_requests(self) -> list[ApprovalRequest]:
         """Get all pending approval requests."""
         return [r for r in self.requests.values() if r.status == ApprovalStatus.PENDING]
 
@@ -275,7 +275,7 @@ class ApprovalGateway:
         """Get a specific request by ID."""
         return self.requests.get(request_id)
 
-    def clear_expired(self):
+    def clear_expired(self) -> None:
         """Remove expired requests from memory."""
         now = datetime.utcnow()
         expired = [

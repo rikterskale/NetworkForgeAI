@@ -4,10 +4,15 @@ The production CI workflow runs:
 
 1. Ruff lint and formatting checks.
 2. Pytest with coverage.
-3. Bandit and dependency auditing.
-4. Markdown link/documentation audits.
-5. Docker Compose configuration validation.
-6. The user-readiness gate.
+3. Strict MyPy checking for the typed safety, reporting, integration, and package surfaces.
+4. Bandit and dependency auditing.
+5. Markdown link/documentation audits.
+6. Docker Compose configuration validation.
+7. The user-readiness gate.
+
+The strict MyPy gate currently covers the maintained typed core surfaces. Legacy
+LLM adapters, agent implementations, and dashboard modules remain outside the
+gate while they are incrementally typed.
 
 The current minimum coverage gate is 90%. It is enforced identically in CI and
 the local `make test` target.
