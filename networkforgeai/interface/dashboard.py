@@ -1,24 +1,35 @@
-"""Minimal authenticated read-only dashboard API."""
+"""Authenticated dashboard API.
+
+Read-only report/scan surfaces are always available. When a live
+``ScanOrchestrator`` is attached via ``create_app(orchestrator=...)``, operator
+endpoints (approval queue, steering, agent status) are enabled. All state-
+changing endpoints fail closed without an attached scan.
+"""
 
 from __future__ import annotations
 
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 try:
-    from fastapi import FastAPI, Header, HTTPException
+    from fastapi import Body, FastAPI, Header, HTTPException
 except ImportError:  # pragma: no cover - deployment dependency
     FastAPI = None  # type: ignore[assignment,misc]
 
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from ..core.approval_gateway import ApprovalRequest
+    from ..core.orchestrator import ScanOrchestrator
 
-def create_app() -> FastAPI:
+
+def create_app(orchestrator: ScanOrchestrator | None = None) -> FastAPI:
     if FastAPI is None:
         raise RuntimeError("FastAPI is required to run the dashboard")
     app = FastAPI(title="NetworkForgeAI Dashboard")
     report_dir = Path(os.getenv("REPORT_OUTPUT_DIR", "./reports"))
     expected_token = os.getenv("DASHBOARD_AUTH_TOKEN", "")
+    scan = orchestrator
 
     def authorize(authorization: str | None) -> None:
         if (
@@ -27,6 +38,11 @@ def create_app() -> FastAPI:
             or authorization != f"Bearer {expected_token}"
         ):
             raise HTTPException(status_code=401, detail="Unauthorized")
+
+    def require_scan() -> ScanOrchestrator:
+        if scan is None:
+            raise HTTPException(status_code=503, detail="No live scan attached to this dashboard")
+        return scan
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -57,9 +73,8 @@ def create_app() -> FastAPI:
     @app.get("/scans")
     def scans(authorization: str | None = Header(default=None)) -> dict[str, Any]:
         authorize(authorization)
-        scan_root = report_dir
         entries = []
-        for state_file in scan_root.glob("*/scan_state.json"):
+        for state_file in report_dir.glob("*/scan_state.json"):
             try:
                 state = json.loads(state_file.read_text(encoding="utf-8"))
                 entries.append(
@@ -88,7 +103,118 @@ def create_app() -> FastAPI:
         except json.JSONDecodeError as exc:
             raise HTTPException(status_code=500, detail="Invalid scan state") from exc
 
+    @app.get("/scans/{scan_id}/findings")
+    def scan_findings(
+        scan_id: str, authorization: str | None = Header(default=None)
+    ) -> dict[str, Any]:
+        authorize(authorization)
+        findings_file = _safe_child(report_dir, f"{scan_id}/findings.json")
+        if not findings_file.is_file():
+            raise HTTPException(status_code=404, detail="Findings not found")
+        try:
+            findings: list[dict[str, Any]] = json.loads(findings_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise HTTPException(status_code=500, detail="Invalid findings file") from exc
+        return {"scan_id": scan_id, "count": len(findings), "findings": findings}
+
+    @app.get("/agents")
+    def agents(authorization: str | None = Header(default=None)) -> dict[str, Any]:
+        authorize(authorization)
+        live = require_scan()
+        rows = [
+            {
+                "id": agent.id,
+                "name": agent.name,
+                "status": agent.status.value,
+                "capabilities": agent.get_capabilities(),
+            }
+            for agent in live.agents.values()
+        ]
+        return {
+            "scan_id": live.scan_id,
+            "scan_status": live.status.value,
+            "agents": sorted(rows, key=lambda row: row["id"]),
+        }
+
+    @app.get("/approvals")
+    def approvals(authorization: str | None = Header(default=None)) -> dict[str, Any]:
+        authorize(authorization)
+        live = require_scan()
+        pending: list[ApprovalRequest] = live.approval_gateway.get_pending_requests()
+        return {
+            "pending": [request.to_dict() for request in pending],
+            "emergency_stop": live.approval_gateway.emergency_stop_active,
+        }
+
+    @app.post("/approvals/{request_id}/approve")
+    def approve_request(
+        request_id: str,
+        authorization: str | None = Header(default=None),
+        response_data: dict[str, Any] | None = Body(default=None),
+    ) -> dict[str, Any]:
+        authorize(authorization)
+        live = require_scan()
+        approved = _run_coroutine(
+            live.approval_gateway.approve(request_id, "dashboard_operator", response_data)
+        )
+        if not approved:
+            raise HTTPException(status_code=409, detail="Request not found or not pending")
+        return {"request_id": request_id, "status": "approved"}
+
+    @app.post("/approvals/{request_id}/reject")
+    def reject_request(
+        request_id: str,
+        authorization: str | None = Header(default=None),
+        reason: str | None = Body(default=None),
+    ) -> dict[str, Any]:
+        authorize(authorization)
+        live = require_scan()
+        rejected = _run_coroutine(
+            live.approval_gateway.reject(
+                request_id, "dashboard_operator", reason or "rejected via dashboard"
+            )
+        )
+        if not rejected:
+            raise HTTPException(status_code=409, detail="Request not found or not pending")
+        return {"request_id": request_id, "status": "rejected"}
+
+    @app.post("/scan/pause")
+    def pause_scan(authorization: str | None = Header(default=None)) -> dict[str, Any]:
+        authorize(authorization)
+        live = require_scan()
+        _run_coroutine(live.pause())
+        return {"scan_id": live.scan_id, "status": live.status.value}
+
+    @app.post("/scan/resume")
+    def resume_scan(authorization: str | None = Header(default=None)) -> dict[str, Any]:
+        authorize(authorization)
+        live = require_scan()
+        _run_coroutine(live.resume())
+        return {"scan_id": live.scan_id, "status": live.status.value}
+
+    @app.post("/scan/stop")
+    def stop_scan(authorization: str | None = Header(default=None)) -> dict[str, Any]:
+        authorize(authorization)
+        live = require_scan()
+        _run_coroutine(live.stop())
+        return {"scan_id": live.scan_id, "status": live.status.value}
+
     return app
+
+
+def _run_coroutine(coroutine: Any) -> Any:
+    """Run an orchestrator/gateway coroutine from sync route handlers."""
+    import asyncio
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coroutine)
+    raise HTTPException(status_code=500, detail="Dashboard cannot nest event loops")
+
+
+def _run_oroutine(coroutine: Any) -> Any:
+    return _run_coroutine(coroutine)
 
 
 def _safe_child(root: Path, relative_path: str) -> Path:
