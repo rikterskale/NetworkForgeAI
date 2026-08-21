@@ -1,5 +1,4 @@
-"""
-OpenAI Model Adapter - Integration with OpenAI API and compatible providers.
+"""OpenAI Model Adapter - Integration with OpenAI API and compatible providers.
 
 Supports:
 - GPT-4, GPT-3.5, o1 models
@@ -8,6 +7,8 @@ Supports:
 - Function/tool calling
 - Streaming responses
 """
+
+from __future__ import annotations
 
 from typing import Any, AsyncIterator, Dict, List, Optional
 
