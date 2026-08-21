@@ -168,6 +168,7 @@
 | LLM-005 | Local LLM support | ✅ | Ollama, LM Studio, vLLM |
 | LLM-006 | Azure OpenAI | ✅ | Enterprise deployment ready |
 | LLM-007 | Model fallback logic | ✅ | Automatic retry on failure |
+| LLM-008 | Google SDK migration (google-genai) | 🔍 | `google-generativeai` is EOL (FutureWarning at import); rewrite `models/google_adapter.py` against the new `google-genai` SDK and update the `[llm]` extra + CI stubs |
 
 ### AI Capabilities
 | ID | Capability | Status | Notes |
@@ -447,6 +448,7 @@ tables above.
 
 | Date | Phase | Changes |
 |------|-------|---------|
+| Current Session | Phase 4 (cont.) | 🔍 LLM-008 registered: migrate `models/google_adapter.py` from EOL `google-generativeai` to the new `google-genai` SDK |
 | Current Session | Phase 3 (cont.) | ✅ TLS-006 Metasploit integration: msfconsole resource scripts executed only in the Docker sandbox, CRITICAL risk with mandatory HITL approval and `check_only` mode |
 | Current Session | Phase 5 (cont.) | ✅ GUI-003 agent graph visualization: dependency-free SVG scan/agent topology in the operator console |
 | Current Session | Phase 5 (cont.) | ✅ GUI-009/GUI-010: dashboard RBAC — optional `DASHBOARD_VIEWER_TOKEN` grants read-only access to reports/scans/agents; approvals and steering remain operator-only |
