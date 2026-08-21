@@ -99,12 +99,17 @@ cp .env.example .env
 
 ### 2. Install the package
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 python -m pip install -e '.[runtime,dev]'
 ```
 
+The virtual environment provides the `python` command consistently, even on
+systems where only `python3` is available globally.
+
 ### 3. Run a scope-bound dry run
 ```bash
-python -m networkforgeai.cli \
+python3 -m networkforgeai.cli \
   --target example.com \
   --scope example.com \
   --tool nmap \
