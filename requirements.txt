@@ -14,7 +14,7 @@ aiofiles>=23.2.0
 # CLI interface
 typer>=0.9.0
 rich>=15.0.0
-prompt-toolkit>=3.0.43
+prompt-toolkit>=3.0.53
 
 # Web dashboard
 fastapi>=0.109.0
