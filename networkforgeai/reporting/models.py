@@ -118,6 +118,8 @@ class Finding:
 
 
 def normalize_severity(value: Severity | str | None) -> Severity:
+    if isinstance(value, Severity):
+        return value
     aliases = {"info": "informational", "informative": "informational", "moderate": "medium"}
     normalized = aliases.get(
         str(value or "informational").lower(), str(value or "informational").lower()
