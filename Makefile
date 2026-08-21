@@ -12,7 +12,7 @@ lint:
 	ruff format --check networkforgeai tests tools
 
 test:
-	pytest -q --cov=networkforgeai --cov-report=term-missing --cov-fail-under=50
+	pytest -q --cov=networkforgeai --cov-report=term-missing --cov-fail-under=75
 
 security:
 	bandit -q -r networkforgeai -ll
