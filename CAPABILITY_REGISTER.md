@@ -182,18 +182,18 @@
 
 ---
 
-## 💻 Phase 5: User Interfaces (📋 PLANNED)
+## 💻 Phase 5: User Interfaces (🚧 IN PROGRESS)
 
 ### Command Line Interface (CLI)
 | ID | Feature | Status | Notes |
 |----|---------|--------|-------|
-| CLI-001 | Main entry point | 📋 | `networkforgeai` command |
-| CLI-002 | Scan initiation workflow | 📋 | Guided target setup |
+| CLI-001 | Main entry point | ✅ | `networkforgeai` command |
+| CLI-002 | Scan initiation workflow | ✅ | Explicit target and scope setup |
 | CLI-003 | Real-time status display | 📋 | TUI with rich library |
 | CLI-004 | Approval prompt interface | 📋 | Interactive HITL dialogs |
-| CLI-005 | Results viewer | 📋 | Filter, search, export |
-| CLI-006 | Configuration manager | 📋 | Profile management |
-| CLI-007 | Help & documentation | 📋 | Context-sensitive help |
+| CLI-005 | Results viewer | ✅ | Safe report listing and viewing |
+| CLI-006 | Configuration manager | ✅ | Safety configuration validation |
+| CLI-007 | Help & documentation | ✅ | Argparse help and interface guide |
 
 ### Web Dashboard
 | ID | Feature | Status | Tech Stack |
@@ -202,9 +202,9 @@
 | GUI-002 | Live scan monitoring | 📋 | WebSocket real-time updates |
 | GUI-003 | Agent graph visualization | 📋 | D3.js or Cytoscape |
 | GUI-004 | Approval workflow UI | 📋 | Modal dialogs with details |
-| GUI-005 | Findings dashboard | 📋 | Filterable table + cards |
-| GUI-006 | Report generator | 📋 | Multi-format export |
-| GUI-007 | Historical runs browser | 📋 | Searchable archive |
+| GUI-005 | Findings dashboard | 🚧 | Read-only persisted scan summaries |
+| GUI-006 | Report generator | 🚧 | Read-only report discovery and retrieval |
+| GUI-007 | Historical runs browser | 🚧 | Scan state listing endpoint |
 | GUI-008 | Steering controls | 📋 | Live agent redirection |
 | GUI-009 | User authentication | 📋 | Token-based auth |
 | GUI-010 | Role-based access control | 📋 | Admin/Operator/Viewer roles |

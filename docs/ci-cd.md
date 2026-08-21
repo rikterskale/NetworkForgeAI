@@ -9,8 +9,8 @@ The production CI workflow runs:
 5. Docker Compose configuration validation.
 6. The user-readiness gate.
 
-The current minimum coverage gate is 50%. It is intentionally enforced in CI and
-should be raised as integration and provider-mocking coverage grows.
+The current minimum coverage gate is 75%. It is enforced identically in CI and
+the local `make test` target.
 
 Run the same checks locally with:
 

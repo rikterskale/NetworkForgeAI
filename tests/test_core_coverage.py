@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 
 import pytest
 
+from networkforgeai.cli import _list_reports, _read_report
+from networkforgeai.cli import main as cli_main
 from networkforgeai.config import ApprovalMode, ReportFormat, Settings
 from networkforgeai.core.approval_gateway import (
     ApprovalGateway,
@@ -370,3 +372,20 @@ def test_prompt_parsing_and_context_utilities():
     assert "User asked" in summary and "Assistant responded" in summary
     assert "Finding:" in cot_vulnerability_analysis("open port", {"port": 443})
     assert "Target Environment" in cot_attack_path_planning([{"type": "x"}], "lab")
+
+
+def test_phase5_cli_tool_and_report_commands(tmp_path, capsys):
+    report = tmp_path / "scan-1" / "report.md"
+    report.parent.mkdir()
+    report.write_text("# Report", encoding="utf-8")
+    assert _list_reports(str(tmp_path)) == ["scan-1/report.md"]
+    assert _read_report(str(tmp_path), "scan-1/report.md") == "# Report"
+    with pytest.raises(ValueError, match="must remain"):
+        _read_report(str(tmp_path), "../outside.txt")
+    with pytest.raises(ValueError, match="not found"):
+        _read_report(str(tmp_path), "missing.md")
+
+    assert cli_main(["--list-tools"]) == 0
+    assert "nmap" in capsys.readouterr().out
+    assert cli_main(["--list-reports", "--output-dir", str(tmp_path)]) == 0
+    assert "scan-1/report.md" in capsys.readouterr().out
