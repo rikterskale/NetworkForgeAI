@@ -108,7 +108,8 @@ jobs:
           cache: pip
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev,runtime]"
-      - run: python tools/user_readiness.py --json | tee user-readiness.json
+      - run: python -m pip check
+      - run: python tools/user_readiness.py --strict --json | tee user-readiness.json
       - uses: actions/upload-artifact@v7
         if: always()
         with:

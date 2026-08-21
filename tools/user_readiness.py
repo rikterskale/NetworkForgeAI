@@ -59,6 +59,11 @@ def run_expect_failure(
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--json", action="store_true")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail when an optional readiness check is skipped (recommended for CI)",
+    )
     args = parser.parse_args()
     checks: list[dict[str, object]] = []
     python = sys.executable
@@ -265,7 +270,29 @@ with TemporaryDirectory() as directory:
         }
     )
 
-    result = {"passed": all(bool(check.get("passed")) for check in checks), "checks": checks}
+    skipped = [str(check["name"]) for check in checks if check.get("skipped")]
+    if args.strict:
+        checks.append(
+            {
+                "name": "strict readiness has no skipped checks",
+                "passed": not skipped,
+                "skipped_checks": skipped,
+            }
+        )
+    names = [str(check.get("name", "")) for check in checks]
+    checks.append(
+        {
+            "name": "readiness report integrity",
+            "passed": all(name for name in names) and len(names) == len(set(names)),
+        }
+    )
+    result = {
+        "schema_version": 1,
+        "mode": "strict" if args.strict else "local",
+        "passed": all(bool(check.get("passed")) for check in checks),
+        "skipped_checks": skipped,
+        "checks": checks,
+    }
     if args.json:
         print(json.dumps(result, indent=2))
     else:

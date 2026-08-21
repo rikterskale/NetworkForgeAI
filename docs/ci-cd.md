@@ -29,9 +29,11 @@ inventory, safe dry-run behavior, rejection of missing or out-of-scope targets,
 report path containment, configuration validation, documentation links, report
 generation, authenticated read-only dashboard behavior, scope denial, approval
 fail-closed behavior, safe example configuration, and deployment configuration.
-CI also runs `pip check` to catch broken installed dependencies. Optional checks
-are explicitly reported as skipped when their runtime dependency is unavailable;
-CI installs the full runtime set.
+CI also runs `pip check` to catch broken installed dependencies. CI invokes the
+readiness tool with `--strict`, so any optional check that is skipped fails the
+release gate. Local runs remain best-effort by default; use
+`python tools/user_readiness.py --strict --json` to reproduce the production
+review locally.
 
 For deployment policy enforcement, run the findings gate against a JSON or SARIF
 report:

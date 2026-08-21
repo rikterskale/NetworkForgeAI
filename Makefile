@@ -31,4 +31,7 @@ findings-gate:
 readiness:
 	$(PYTHON) tools/user_readiness.py
 
+readiness-strict:
+	$(PYTHON) tools/user_readiness.py --strict --json
+
 ci: lint test typecheck security docs readiness
