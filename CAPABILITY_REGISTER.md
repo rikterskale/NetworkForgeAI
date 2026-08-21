@@ -244,7 +244,7 @@
 | RPT-004 | SARIF | ✅ | IDE integration, CI/CD |
 | RPT-005 | PDF | ✅ | Dependency-free executive-summary PDF via `reporting.generators.to_pdf`; written per scan as `executive-summary.pdf` |
 | RPT-006 | HTML | ✅ | Escaped, severity-styled HTML via `reporting.generators.to_html` |
-| RPT-007 | Email delivery | 📋 | Automated distribution |
+| RPT-007 | Email delivery | ✅ | `integrations/email_delivery.SmtpReportSender` — STARTTLS/SSL SMTP delivery of sanitized summaries |
 
 ### Compliance & Standards
 | ID | Standard | Status | Notes |
@@ -262,11 +262,11 @@
 ### Version Control & Issue Tracking
 | ID | Platform | Status | Integration Type |
 |----|----------|--------|------------------|
-| INT-001 | GitHub | 📋 | Actions, Issues, PR comments |
-| INT-002 | GitLab | 📋 | CI/CD, Issues, MR comments |
+| INT-001 | GitHub | ✅ | Issues via REST (`GitHubIssueCreator`); Actions gate already in CI |
+| INT-002 | GitLab | ✅ | Issues via REST (`GitLabIssueCreator`); CI parity template shipped |
 | INT-003 | Bitbucket | 📋 | Pipelines, Issues |
 | INT-004 | Jira | ✅ | Issue creation from findings via REST (`integrations/notifications.py`, HTTPS-only) |
-| INT-005 | Linear | 📋 | Issue creation |
+| INT-005 | Linear | ✅ | Issue creation via GraphQL (`LinearIssueCreator`) |
 | INT-006 | Azure DevOps | 🔍 | Boards, Pipelines |
 
 ### Communication & Collaboration
@@ -275,7 +275,7 @@
 | INT-101 | Slack | ✅ | Finding summaries to incoming webhooks (`integrations/notifications.py`, HTTPS-only) |
 | INT-102 | Microsoft Teams | ✅ | Message-card summaries to incoming webhooks (`integrations/notifications.py`, HTTPS-only) |
 | INT-103 | Discord | 🔍 | Notifications |
-| INT-104 | Email (SMTP) | 📋 | Reports, alerts |
+| INT-104 | Email (SMTP) | ✅ | Same transport as RPT-007; TLS enforced for remote hosts |
 
 ### CI/CD Platforms
 | ID | Platform | Status | Capabilities |
@@ -291,7 +291,7 @@
 |----|---------------|--------|---------------------|
 | INT-201 | SIEM systems | 🔍 | Alert forwarding |
 | INT-202 | Vulnerability scanners | 🔍 | Result correlation |
-| INT-203 | Ticketing systems | 📋 | Auto-ticket creation |
+| INT-203 | Ticketing systems | ✅ | Generic HTTPS JSON webhook ticket creation (`WebhookTicketClient`) |
 | INT-204 | Secret managers | 🔍 | Credential injection |
 
 ---

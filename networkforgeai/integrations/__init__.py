@@ -1,11 +1,20 @@
 """Provider-neutral outbound integration contracts."""
 
+from .email_delivery import EmailSettings, SmtpReportSender
 from .notifications import (
     HttpsJsonClient,
     JiraNotifier,
     SlackNotifier,
     TeamsNotifier,
     summarize_findings,
+)
+from .trackers import (
+    GitHubIssueCreator,
+    GitLabIssueCreator,
+    LinearIssueCreator,
+    WebhookTicketClient,
+    finding_to_issue_fields,
+    select_notable_findings,
 )
 from .webhooks import WebhookEvent, WebhookNotifier
 
@@ -17,4 +26,12 @@ __all__ = [
     "WebhookEvent",
     "WebhookNotifier",
     "summarize_findings",
+    "GitHubIssueCreator",
+    "GitLabIssueCreator",
+    "LinearIssueCreator",
+    "WebhookTicketClient",
+    "finding_to_issue_fields",
+    "select_notable_findings",
+    "EmailSettings",
+    "SmtpReportSender",
 ]
