@@ -372,7 +372,7 @@ paths; these remain tracked rather than silently treated as resolved.
 ### AI Enhancements
 | ID | Feature | Status | Complexity |
 |----|---------|--------|------------|
-| ADV-001 | Multi-agent debate | 🔍 | High |
+| ADV-001 | Multi-agent debate | 🚧 FOUNDATION | Bounded independent opinions and one critique round; advisory output only |
 | ADV-002 | Self-improvement loop | 🔍 | Very High |
 | ADV-003 | Transfer learning | 🔍 | High |
 | ADV-004 | Few-shot learning examples | 🚧 FOUNDATION | Bounded, opt-in trusted examples are formatted into agent analysis context |

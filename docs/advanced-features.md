@@ -78,3 +78,22 @@ Examples are opt-in and bounded to three examples and 4,000 characters per
 analysis. Empty examples are ignored. They should contain sanitized, trusted
 guidance only; they are not a way to pass secrets, authorize actions, or bypass
 scope checks.
+
+## Multi-agent debate
+
+`MultiAgentDebate` can ask a bounded set of agents for independent opinions and
+then request one peer-critique round. It returns the opinions and critiques for
+human or application-level review; it does not select a winner, execute tools,
+change the knowledge base, or grant approval.
+
+```python
+from networkforgeai.core.debate import MultiAgentDebate
+
+result = await MultiAgentDebate(max_participants=3, max_rounds=2).run(
+    "Assess the evidence for this finding", context, [recon_agent, scanner_agent]
+)
+```
+
+The coordinator caps participation at three agents by default, caps discussion
+at two rounds, and truncates each response before it is shared with peers.
+Provider failures are recorded by type without exposing exception details.

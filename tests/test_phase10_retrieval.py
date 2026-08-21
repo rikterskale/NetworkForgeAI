@@ -1,6 +1,7 @@
 import asyncio
 
 from networkforgeai.core.base_agent import BaseAgent
+from networkforgeai.core.debate import MultiAgentDebate
 from networkforgeai.core.knowledge_base import KnowledgeBase
 from networkforgeai.core.retrieval import HybridRetriever, LocalRetriever, RetrievalDocument
 from networkforgeai.models.ai_capabilities import FewShotExample, format_few_shot_examples
@@ -109,5 +110,54 @@ def test_agent_analysis_includes_opt_in_few_shot_examples():
         assert "Few-shot examples:" in adapter.messages[-1].content
         assert "Input: input" in adapter.messages[-1].content
         assert "Output: output" in adapter.messages[-1].content
+
+    asyncio.run(scenario())
+
+
+class DebateAgent:
+    def __init__(self, participant_id, response):
+        self.id = participant_id
+        self.response = response
+        self.prompts = []
+
+    async def analyze_context(self, prompt, context):
+        self.prompts.append((prompt, context))
+        return self.response
+
+
+def test_multi_agent_debate_is_bounded_and_advisory():
+    async def scenario():
+        agents = [
+            DebateAgent("a", "opinion-a"),
+            DebateAgent("b", "opinion-b"),
+            DebateAgent("c", "ignored"),
+        ]
+        context = {"scope": ["example.com"]}
+        result = await MultiAgentDebate(max_participants=2, max_chars=100).run(
+            "Assess the evidence", context, agents, rounds=2
+        )
+
+        assert [opinion.participant_id for opinion in result.opinions] == ["a", "b"]
+        assert len(result.critiques) == 2
+        assert all("opinion-a" in agent.prompts[1][0] for agent in agents[:2])
+        assert context == {"scope": ["example.com"]}
+        assert agents[2].prompts == []
+
+    asyncio.run(scenario())
+
+
+def test_multi_agent_debate_records_provider_errors_without_authorizing_actions():
+    async def scenario():
+        failed = DebateAgent("failed", "unused")
+
+        async def raise_error(prompt, context):
+            raise RuntimeError("provider detail must not be exposed")
+
+        failed.analyze_context = raise_error
+        result = await MultiAgentDebate(max_rounds=1).run("Assess", {}, [failed])
+
+        assert len(result.errors) == 1
+        assert result.errors[0].error == "RuntimeError"
+        assert result.errors[0].content == ""
 
     asyncio.run(scenario())
