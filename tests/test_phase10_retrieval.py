@@ -3,6 +3,7 @@ import asyncio
 from networkforgeai.core.base_agent import BaseAgent
 from networkforgeai.core.knowledge_base import KnowledgeBase
 from networkforgeai.core.retrieval import LocalRetriever, RetrievalDocument
+from networkforgeai.models.ai_capabilities import FewShotExample, format_few_shot_examples
 from networkforgeai.models.base_adapter import Message
 
 
@@ -58,5 +59,38 @@ def test_agent_analysis_includes_retrieved_knowledge():
         assert "Retrieved knowledge:" in adapter.messages[-1].content
         assert "HTTPS on port 443" in adapter.messages[-1].content
         assert isinstance(adapter.messages[-1], Message)
+
+    asyncio.run(scenario())
+
+
+def test_few_shot_examples_are_bounded_and_formatted():
+    examples = [
+        FewShotExample("question", "answer", "demo"),
+        FewShotExample("", "ignored"),
+        FewShotExample("second", "response"),
+        FewShotExample("third", "not included"),
+    ]
+
+    formatted = format_few_shot_examples(examples, max_examples=3, max_chars=200)
+
+    assert "Example 1 (demo):" in formatted
+    assert "question" in formatted
+    assert "ignored" not in formatted
+    assert "not included" not in formatted
+
+
+def test_agent_analysis_includes_opt_in_few_shot_examples():
+    async def scenario():
+        adapter = RecordingAdapter()
+        agent = RetrievalAgent(
+            model_adapter=adapter,
+            few_shot_examples=[FewShotExample("input", "output", "test")],
+        )
+
+        await agent.analyze_context("Analyze this", {})
+
+        assert "Few-shot examples:" in adapter.messages[-1].content
+        assert "Input: input" in adapter.messages[-1].content
+        assert "Output: output" in adapter.messages[-1].content
 
     asyncio.run(scenario())

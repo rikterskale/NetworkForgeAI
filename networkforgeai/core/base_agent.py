@@ -69,6 +69,7 @@ class BaseAgent(ABC):
         self.message_bus = message_bus
         self.model_adapter = model_adapter
         self.knowledge_base: Optional[KnowledgeBase] = kwargs.get("knowledge_base")
+        self.few_shot_examples = kwargs.get("few_shot_examples", [])
         self.tool_registry = tool_registry or {}
         self.status = AgentStatus.IDLE
         self.current_task: Optional[str] = None
@@ -218,10 +219,20 @@ class BaseAgent(ABC):
             raise RuntimeError("No model adapter configured for this agent")
         return await self.model_adapter.chat(messages, **kwargs)
 
-    async def analyze_context(self, prompt: str, context: Dict[str, Any]) -> Any:
+    async def analyze_context(
+        self, prompt: str, context: Dict[str, Any], *, examples: Optional[List[Any]] = None
+    ) -> Any:
         """Run a model-backed analysis with retry and bounded context when configured."""
         from ..models.base_adapter import Message
 
+        example_context = ""
+        selected_examples = self.few_shot_examples if examples is None else examples
+        if selected_examples:
+            from ..models.ai_capabilities import format_few_shot_examples
+
+            formatted_examples = format_few_shot_examples(selected_examples)
+            if formatted_examples:
+                example_context = f"\nFew-shot examples:\n{formatted_examples}"
         retrieved_context = ""
         if self.knowledge_base is not None:
             matches = await self.knowledge_base.retrieve(prompt, top_k=5, min_score=0.25)
@@ -230,7 +241,10 @@ class BaseAgent(ABC):
                     f"- {match.document.text}" for match in matches
                 )
         messages = [
-            Message(role="user", content=f"{prompt}\nContext: {context}{retrieved_context}")
+            Message(
+                role="user",
+                content=f"{prompt}\nContext: {context}{example_context}{retrieved_context}",
+            )
         ]
         if hasattr(self.model_adapter, "prepare_context"):
             messages = self.model_adapter.prepare_context(messages)

@@ -45,3 +45,28 @@ matches = retriever.search("HTTPS port")
 
 Most agents should use `BaseAgent.analyze_context` instead. Agents registered
 with `ScanOrchestrator` automatically receive its shared knowledge base.
+
+## Few-shot examples
+
+An agent can optionally provide a few trusted input/output examples. These
+examples help a model follow the desired response shape without changing tool
+permissions or approval rules:
+
+```python
+from networkforgeai.models.ai_capabilities import FewShotExample
+
+agent = MyAgent(
+    few_shot_examples=[
+        FewShotExample(
+            input_text="A service reports HTTPS on port 443.",
+            output_text='{"type": "service", "value": "443/tcp", "confidence": "HIGH"}',
+            label="recon discovery",
+        )
+    ]
+)
+```
+
+Examples are opt-in and bounded to three examples and 4,000 characters per
+analysis. Empty examples are ignored. They should contain sanitized, trusted
+guidance only; they are not a way to pass secrets, authorize actions, or bypass
+scope checks.

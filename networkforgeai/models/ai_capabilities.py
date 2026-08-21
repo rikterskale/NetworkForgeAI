@@ -10,7 +10,7 @@ Provides specialized prompts and reasoning patterns for pentesting agents:
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 
 @dataclass
@@ -21,6 +21,40 @@ class AgentPrompt:
     capabilities_description: str
     output_format: str
     examples: List[str]
+
+
+@dataclass(frozen=True)
+class FewShotExample:
+    """A small, trusted input/output example for guiding model responses."""
+
+    input_text: str
+    output_text: str
+    label: str = "example"
+
+
+def format_few_shot_examples(
+    examples: Sequence[FewShotExample], *, max_examples: int = 3, max_chars: int = 4000
+) -> str:
+    """Format a bounded set of examples for inclusion in a model prompt."""
+    if max_examples <= 0 or max_chars <= 0:
+        return ""
+
+    sections: list[str] = []
+    total_chars = 0
+    for index, example in enumerate(examples[:max_examples], start=1):
+        if not example.input_text.strip() or not example.output_text.strip():
+            continue
+        section = (
+            f"Example {index} ({example.label}):\n"
+            f"Input: {example.input_text.strip()}\n"
+            f"Output: {example.output_text.strip()}"
+        )
+        separator = "\n\n" if sections else ""
+        if total_chars + len(separator) + len(section) > max_chars:
+            break
+        sections.append(section)
+        total_chars += len(separator) + len(section)
+    return "\n\n".join(sections)
 
 
 # ============================================================================
