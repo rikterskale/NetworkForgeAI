@@ -34,7 +34,7 @@ cvss>=3.1
 # Utilities
 python-dotenv>=1.2.3
 structlog>=24.1.0
-uuid-utils>=0.7.0
+uuid-utils>=0.17.0
 
 # Testing (dev dependency)
 pytest>=8.0.0
