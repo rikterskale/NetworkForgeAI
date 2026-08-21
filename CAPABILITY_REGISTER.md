@@ -219,24 +219,24 @@
 
 ---
 
-## 📁 Phase 6: Data Management & Reporting (📋 PLANNED)
+## 📁 Phase 6: Data Management & Reporting (🚧 IN PROGRESS)
 
 ### Findings Management
 | ID | Capability | Status | Notes |
 |----|-----------|--------|-------|
-| DAT-001 | Finding data model | 📋 | Standardized schema |
-| DAT-002 | Evidence attachment | 📋 | Screenshots, logs, PoCs |
-| DAT-003 | Deduplication logic | 📋 | Merge duplicate findings |
-| DAT-004 | Severity normalization | 📋 | CVSS + custom scoring |
-| DAT-005 | Remediation templates | 📋 | Pre-written guidance |
+| DAT-001 | Finding data model | ✅ | Canonical validated dataclass |
+| DAT-002 | Evidence attachment | ✅ | Typed evidence with sensitive redaction |
+| DAT-003 | Deduplication logic | ✅ | Stable type/target/title identity |
+| DAT-004 | Severity normalization | ✅ | Informational/low/medium/high/critical mapping |
+| DAT-005 | Remediation templates | ✅ | Baseline guidance for core finding types |
 
 ### Report Generation
 | ID | Format | Status | Use Case |
 |----|--------|--------|----------|
-| RPT-001 | Markdown | 📋 | Developer-friendly reports |
-| RPT-002 | JSON | 📋 | Machine consumption, APIs |
-| RPT-003 | CSV | 📋 | Spreadsheet analysis |
-| RPT-004 | SARIF | 📋 | IDE integration, CI/CD |
+| RPT-001 | Markdown | ✅ | Developer-friendly reports |
+| RPT-002 | JSON | ✅ | Machine consumption, APIs |
+| RPT-003 | CSV | ✅ | Spreadsheet analysis |
+| RPT-004 | SARIF | ✅ | IDE integration, CI/CD |
 | RPT-005 | PDF | 🔍 | Executive summaries |
 | RPT-006 | HTML | 📋 | Interactive reports |
 | RPT-007 | Email delivery | 📋 | Automated distribution |
