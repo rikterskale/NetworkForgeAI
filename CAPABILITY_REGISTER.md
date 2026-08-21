@@ -312,6 +312,19 @@
 | QA-004 | Test coverage threshold | ✅ | >90% line coverage |
 | QA-005 | Security scan | ✅ | Bandit and pip-audit in CI; Semgrep remains future work |
 
+### Type-checking follow-up backlog
+
+The maintained typed surfaces pass strict MyPy in CI. A full-repository strict
+baseline recorded during Phase 8 found **140 errors across 18 files** in legacy
+paths; these remain tracked rather than silently treated as resolved.
+
+| Priority | Area | Scope | Exit criterion |
+|----------|------|-------|----------------|
+| 1 | Core orchestration | `networkforgeai/core/orchestrator.py` and agent lifecycle types | Strict MyPy passes for orchestration and agents |
+| 2 | LLM adapters | Anthropic, Google, and OpenAI adapter implementations | Optional-provider imports and stream signatures are typed |
+| 3 | Dashboard | `networkforgeai/interface/dashboard.py` | Dashboard module passes strict MyPy |
+| 4 | Repository gate | Remaining legacy modules | Full `mypy --strict networkforgeai` passes |
+
 ---
 
 ## 📚 Phase 9: Documentation & Training (🚧 IN PROGRESS)
