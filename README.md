@@ -219,8 +219,10 @@ jobs:
 - [Advanced Features](docs/advanced-features.md)
 - [Interface Guide](docs/interfaces.md)
 - [API Reference](docs/api-reference.md)
+- [Architecture Overview](docs/architecture.md)
 - [FAQ](docs/faq.md)
 - [Ethical Guidelines](docs/ethics.md)
+- [Contributing](CONTRIBUTING.md)
 
 ## License
 

@@ -346,15 +346,15 @@ installed in CI so optional provider adapters typecheck against real stubs.
 
 - [x] Publish installation and configuration guides.
 - [x] Document CLI workflows and approval behavior.
-- [x] Add architecture, API, security-model, and deployment references. (security model ✅; API reference ✅; deep-dive architecture doc outstanding)
+- [x] Add architecture, API, security-model, and deployment references. (all ✅; deployment covered in installation/architecture docs)
 - [ ] Create example scan scenarios and operator training material.
 
 ### Technical Documentation
 | ID | Document | Status | Audience |
 |----|----------|--------|----------|
-| DOC-101 | Architecture overview | 🚧 | Component map in README plus `docs/agents.md`/`docs/approval-system.md`; no dedicated deep-dive yet |
+| DOC-101 | Architecture overview | ✅ | `docs/architecture.md` (packages, execution flow, safety model, persistence) |
 | DOC-102 | API reference | ✅ | `docs/api-reference.md` (reporting, validation, safety core, orchestration, integrations) |
-| DOC-103 | Contributing guide | 📋 | Partially covered by `docs/installation.md` developer extras |
+| DOC-103 | Contributing guide | ✅ | `CONTRIBUTING.md` (safety invariants, quality gates, conventions) |
 | DOC-104 | Security model whitepaper | ✅ | `SECURITY.md`, `docs/ethics.md`, `docs/approval-system.md` |
 | DOC-105 | Deployment guide | 🚧 | Docker/compose files documented in `docs/installation.md`; production deployment not yet written |
 
