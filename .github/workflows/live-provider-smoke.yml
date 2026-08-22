@@ -1,0 +1,37 @@
+name: Live provider smoke
+
+# Real one-call-per-provider drift canary. NOT part of the PR gate: it runs on a
+# nightly schedule and on manual dispatch, using repo/environment secrets. Tests
+# self-skip for any provider whose key is absent, so this is safe to enable one
+# provider at a time (add only the secrets you have).
+
+on:
+  schedule:
+    - cron: "0 7 * * *" # 07:00 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-provider-smoke
+  cancel-in-progress: true
+
+jobs:
+  live:
+    name: Live provider round-trips
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[dev,llm]"
+      - run: python -m pytest -m live_provider -v -rs
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
