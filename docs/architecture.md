@@ -1,9 +1,10 @@
 # Architecture Overview
 
-NetworkForgeAI is a host-side multi-agent reasoning system with a mandatory
-human approval gateway, one shared per-scan offensive sandbox, per-agent
-persistent model sessions, and disk-backed evidence consumed by every
-interface.
+NetworkForgeAI is a host-side multi-agent coordination system with a mandatory
+human approval gateway. Agents drive real tool wrappers (and, optionally, an LLM
+for advisory triage), execute commands through a fail-closed Docker runner, and
+write disk-backed evidence consumed by every interface. Agents never fabricate
+findings — see the honest-output contract in [Agents](agents.md).
 
 ## Package layout
 
@@ -23,7 +24,7 @@ networkforgeai/
 │   └── validation_runner.py# sandbox-only approved PoC execution
 ├── agents/             # ReconAgent, VulnerabilityScannerAgent, specialized
 ├── models/             # LLM adapter layer (optional providers)
-├── tools/              # BaseTool framework + 8 tool integrations
+├── tools/              # BaseTool framework + tool integrations (nmap, sqlmap, ...)
 ├── sandbox/            # fail-closed Docker command runner
 ├── reporting/          # finding model, format generators, compliance maps
 ├── integrations/       # webhooks, Slack/Jira notifications
@@ -41,13 +42,15 @@ networkforgeai/
    shared references to these. The scan runs in phases (reconnaissance,
    vulnerability scanning, exploitation, post-exploitation), executing each
    phase's agents concurrently.
-3. **Agent execution**: agents call tools or the model adapter. Any HIGH/CRITICAL
-   action goes through `BaseAgent.request_approval`, which submits to the
-   gateway and blocks on the human decision.
+3. **Agent execution**: agents run registered tool wrappers via
+   `BaseAgent.run_tool` (which awaits `BaseTool.execute_async`) and, when a model
+   is configured, request advisory hypotheses. Results are tagged by source and
+   never fabricated; missing tools/models yield an explicit status note.
 4. **Tool execution** (`tools/base_tool.py`): commands are built, validated
-   against scope, wrapped in dry-run/sandbox policy, and executed through
-   `sandbox/runner.py`. Synchronous tools request approval via the gateway's
-   async protocol before running.
+   against scope, and wrapped in dry-run/sandbox policy. HIGH/CRITICAL tools
+   require approval — `execute_async` awaits the gateway on the running loop and
+   offloads the subprocess to a worker thread; the synchronous `execute` path
+   uses the gateway's async protocol from outside a loop.
 5. **Evidence**: findings flow into the orchestrator's collection and are
    persisted as `scan_state.json`, `findings.{json,csv,sarif}`, and
    `report.md` under the scan directory.
@@ -95,5 +98,6 @@ append-only JSONL (`approval_audit.jsonl`) and must be preserved.
 ## Typing and quality gates
 
 The entire package passes `mypy --strict` (enforced in CI). Coverage floor is
-90% with `cli.py`, the dashboard, and LLM adapters omitted from coverage
-accounting. See [CONTRIBUTING.md](../CONTRIBUTING.md) for the full gate.
+90%; only the third-party LLM SDK adapters are omitted from coverage accounting
+(they require live provider credentials). See
+[CONTRIBUTING.md](../CONTRIBUTING.md) for the full gate.

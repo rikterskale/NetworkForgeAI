@@ -68,24 +68,33 @@ NetworkForgeAI provides AI-assisted security testing with:
 ## Architecture
 
 ### Central Pattern
-Host-side multi-agent reasoning with **human approval gateway**, one shared per-scan offensive sandbox, per-agent persistent model sessions, and disk-backed evidence consumed by interfaces.
+Host-side multi-agent coordination behind a **human approval gateway**. Agents
+drive real tool wrappers (e.g. `nmap`, `sqlmap`) through the gateway and, when a
+model is configured, use it for advisory triage. Evidence is written to disk and
+consumed by the CLI, TUI, and dashboard. Agents never fabricate findings: when a
+required tool or model is unavailable they record an explicit status and return
+no results.
 
 ### Component Map
 
 | Component | Responsibility |
 |-----------|----------------|
-| CLI Entry | Argument parsing, Docker/model checks, scan bootstrap |
-| Orchestrator | Sandbox creation, agent coordination, approval workflow enforcement |
-| Agent Graph | Parent/child topology, statuses, mailboxes, approval states |
-| Execution Engine | Streaming model loop, approval gate enforcement, lifecycle management |
-| Agent Factory | System prompts, tools with approval wrappers, filesystem/shell capabilities |
-| Model Adapter | OpenAI Agents SDK, LiteLLM compatibility, local LLM support |
-| Context Control | Token estimation, history summarization, overflow recovery |
-| Sandbox Manager | Containerized environment, Caido proxy, isolated toolkit |
-| Approval Gateway | **Critical**: Human verification layer for all offensive actions |
-| Terminal UI | Authenticated socket protocol with approval prompts |
-| Web Dashboard | Live steering, approval queue, agent visualization |
-| Reporting | Finding state, cost ledger, Markdown/JSON/CSV/SARIF output |
+| CLI Entry | Argument parsing, scope validation, scan bootstrap, tool registry wiring |
+| Orchestrator | Agent coordination, phase execution, approval workflow enforcement, state persistence |
+| Agents | Recon / vulnerability / planning / QA agents with mailboxes and approval states |
+| Tool Wrappers | Command builders + output parsers with scope checks and approval gating (`execute_async`) |
+| Model Adapters | Pluggable OpenAI / Anthropic / Google (google-genai) / local / LiteLLM chat adapters (optional) |
+| Context Control | Token estimation and context truncation (`prepare_context`), retry with backoff |
+| Sandbox Runner | Optional Docker-isolated command execution, fail-closed when unavailable |
+| Approval Gateway | **Critical**: human verification layer for all high-risk actions, with audit log |
+| Terminal UI | Approval prompts and status display for CLI operation |
+| Web Dashboard | Read-only report/scan/agent surfaces; live steering + approval queue when a scan is attached |
+| Reporting | Finding aggregation and Markdown/JSON/CSV/SARIF/PDF output |
+
+> Note: LLM adapters are optional. Without a configured provider the framework
+> runs deterministically — recon and validation are driven entirely by the tool
+> wrappers, and vulnerability hypotheses (which require a model) are simply not
+> produced. See [Agent System](docs/agents.md) for the honest-output contract.
 
 ## Quick Start
 
