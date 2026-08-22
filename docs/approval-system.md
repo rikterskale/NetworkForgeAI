@@ -14,3 +14,7 @@ logs or persisted audit records.
 Do not bypass the gateway by invoking an underlying command directly. Host execution
 must be explicitly selected for development; production execution should use the
 Docker sandbox runner.
+Approval policy is centralized by action semantics: passive analysis may run
+without a prompt, while active network/web/cloud actions and all high/critical
+actions require the gateway. Direct CLI tools and orchestrated agents use the
+same policy. Dry runs never execute commands and never request approval.

@@ -79,7 +79,7 @@ All outputs are advisory; nothing executes actions.
 
 ### `networkforgeai.core.orchestrator`
 
-- `ScanOrchestrator(ScanConfig(target, scope, excluded, approval_mode, save_dir))`
+- `ScanOrchestrator(ScanConfig(target, scope, excluded, approval_mode, save_dir, report_formats, audit_all_approvals))`
 - `register_agent(agent)`, `start()`, `execute_scan()`.
 - `pause()`, `resume()`, `stop()` — steering; `stop()` triggers gateway
   emergency stop.

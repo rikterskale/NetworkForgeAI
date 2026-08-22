@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -19,21 +20,37 @@ from .agents.specialized import (
     WebApplicationAgent,
 )
 from .agents.vuln_scanner_agent import VulnerabilityScannerAgent
+from .core.approval_gateway import ApprovalStatus, RiskLevel, action_requires_approval
 from .core.orchestrator import ScanConfig, ScanOrchestrator
 from .core.scope import ScopePolicy
 from .tools import get_available_tools, get_tool_by_name
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _fallback_report_formats() -> list[str]:
+    try:
+        value = json.loads(os.getenv("REPORT_FORMATS", '["markdown", "json", "csv", "sarif"]'))
+        return [str(item).lower() for item in value if isinstance(item, str)]
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return ["markdown", "json", "csv", "sarif"]
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="NetworkForgeAI authorized security validation")
     parser.add_argument("--target", help="Authorized hostname, URL, IP, or CIDR member")
     parser.add_argument(
-        "--scope", action="append", default=[], help="Allowed target or CIDR; repeatable"
+        "--scope", action="append", default=None, help="Allowed target or CIDR; repeatable"
     )
     parser.add_argument(
         "--exclude", action="append", default=[], help="Excluded target; repeatable"
     )
-    parser.add_argument("--mode", choices=["strict", "moderate", "lenient"], default="strict")
+    parser.add_argument("--mode", choices=["strict", "moderate", "lenient"], default=None)
     parser.add_argument(
         "--tool",
         choices=sorted(get_available_tools()),
@@ -48,7 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Explicitly disable Docker sandboxing (authorized development use only)",
     )
-    parser.add_argument("--output-dir", default="./scans")
+    parser.add_argument("--output-dir", default=None)
     parser.add_argument("--orchestrate", action="store_true", help="Run the basic agent workflow")
     parser.add_argument(
         "--profile",
@@ -67,6 +84,10 @@ def build_parser() -> argparse.ArgumentParser:
             '{"target","module","payload","set_options","justification"} entries. Every '
             "entry still requires explicit human approval before execution."
         ),
+    )
+    parser.add_argument(
+        "--justification",
+        help="Written justification required by configured policy for critical actions",
     )
     parser.add_argument(
         "--provider",
@@ -103,29 +124,38 @@ def main(argv: list[str] | None = None) -> int:
         for name, tool_class in get_available_tools().items():
             print(f"{name}\t{tool_class.risk_level.value}\t{tool_class.category.value}")
         return 0
+    try:
+        from .config import Settings
+
+        runtime_settings = Settings()
+    except ModuleNotFoundError as exc:
+        if args.validate_config or args.diagnose_config:
+            raise SystemExit("Configuration commands require the runtime dependencies") from exc
+        runtime_settings = None
+    output_dir = (
+        runtime_settings.resolve_output_dir(args.output_dir)
+        if runtime_settings is not None
+        else args.output_dir or os.getenv("REPORT_OUTPUT_DIR") or "./reports"
+    )
     if args.list_reports:
-        for path in _list_reports(args.output_dir):
+        for path in _list_reports(output_dir):
             print(path)
         return 0
     if args.show_report:
         try:
-            print(_read_report(args.output_dir, args.show_report))
+            print(_read_report(output_dir, args.show_report))
         except ValueError as exc:
             raise SystemExit(str(exc)) from exc
         return 0
     if args.validate_config:
-        from .config import Settings
-
-        settings = Settings()
-        settings.validate_security_config()
+        assert runtime_settings is not None
+        runtime_settings.validate_security_config()
         print("Configuration is valid for authorized scanning.")
         return 0
     if args.diagnose_config:
-        from .config import Settings
-
         try:
-            settings = Settings()
-            diagnostics = settings.diagnostics()
+            assert runtime_settings is not None
+            diagnostics = runtime_settings.diagnostics()
             print(
                 json.dumps(
                     {"ok": all(item["ok"] for item in diagnostics), "checks": diagnostics}, indent=2
@@ -135,29 +165,91 @@ def main(argv: list[str] | None = None) -> int:
         except Exception as exc:
             print(json.dumps({"ok": False, "checks": [], "error": str(exc)}, indent=2))
             return 2
-    if not args.target or not args.scope:
+    scope = (
+        runtime_settings.resolve_scope(args.scope)
+        if runtime_settings is not None
+        else list(args.scope or filter(None, os.getenv("TARGET_SCOPE", "").split(",")))
+    )
+    if not args.target or not scope:
         raise SystemExit("--target and --scope are required for scan operations")
-    policy = ScopePolicy(args.scope, args.exclude)
+    policy = ScopePolicy(scope, args.exclude)
     if not policy.contains(args.target):
         raise SystemExit(f"Target is outside the explicitly supplied scope: {args.target}")
 
     if args.tool:
+        gateway = None
+        if not args.dry_run:
+            from .core.approval_gateway import ApprovalGateway
+
+            gateway = ApprovalGateway(
+                mode=(
+                    runtime_settings.resolve_approval_mode(args.mode)
+                    if runtime_settings is not None
+                    else args.mode or os.getenv("APPROVAL_MODE", "strict")
+                ),
+                audit_log_path=Path(output_dir) / "approval_audit.jsonl",
+                audit_enabled=(
+                    runtime_settings.audit_all_approvals
+                    if runtime_settings
+                    else _env_bool("AUDIT_ALL_APPROVALS", True)
+                ),
+                block_destructive_actions=(
+                    runtime_settings.block_destructive_actions
+                    if runtime_settings
+                    else _env_bool("BLOCK_DESTRUCTIVE_ACTIONS", True)
+                ),
+                require_justification_for_exploitation=(
+                    runtime_settings.require_justification_for_exploitation
+                    if runtime_settings
+                    else _env_bool("REQUIRE_JUSTIFICATION_FOR_EXPLOITATION", True)
+                ),
+            )
         tool = get_tool_by_name(
             args.tool,
             dry_run=args.dry_run,
             sandbox_mode=not args.host_execution,
             scope_policy=policy,
+            approval_gateway=gateway,
         )
-        result = tool.execute(args.target)
+        result = asyncio.run(_execute_single_tool(tool, args.target, gateway, args.justification))
         print(json.dumps(result.to_dict(), indent=2, default=str))
         return 0 if result.success else 1
 
     config = ScanConfig(
         target=args.target,
-        scope=args.scope,
+        scope=scope,
         excluded=args.exclude,
-        approval_mode=args.mode,
-        save_dir=args.output_dir,
+        approval_mode=(
+            runtime_settings.resolve_approval_mode(args.mode)
+            if runtime_settings is not None
+            else args.mode or os.getenv("APPROVAL_MODE", "strict")
+        ),
+        max_agents=(
+            runtime_settings.max_concurrent_agents
+            if runtime_settings
+            else int(os.getenv("MAX_CONCURRENT_AGENTS", "5"))
+        ),
+        save_dir=output_dir,
+        report_formats=(
+            [item.value for item in runtime_settings.report_formats]
+            if runtime_settings is not None
+            else _fallback_report_formats()
+        ),
+        audit_all_approvals=(
+            runtime_settings.audit_all_approvals
+            if runtime_settings
+            else _env_bool("AUDIT_ALL_APPROVALS", True)
+        ),
+        block_destructive_actions=(
+            runtime_settings.block_destructive_actions
+            if runtime_settings
+            else _env_bool("BLOCK_DESTRUCTIVE_ACTIONS", True)
+        ),
+        require_justification_for_exploitation=(
+            runtime_settings.require_justification_for_exploitation
+            if runtime_settings
+            else _env_bool("REQUIRE_JUSTIFICATION_FOR_EXPLOITATION", True)
+        ),
     )
     orchestrator = ScanOrchestrator(config)
     model_adapter = None
@@ -254,6 +346,43 @@ def _read_report(output_dir: str, report_path: str) -> str:
     if not requested.is_file():
         raise ValueError(f"Report not found: {report_path}")
     return requested.read_text(encoding="utf-8")
+
+
+async def _execute_single_tool(
+    tool: Any, target: str, gateway: Any, justification: str | None = None
+) -> Any:
+    """Run a single tool with the same approval policy as agent execution."""
+    if tool.dry_run:
+        return tool.execute(target)
+    if gateway is not None:
+        from .interface.cli_ui import ApprovalPrompt
+
+        gateway.register_callback("cli_prompt", ApprovalPrompt(gateway))
+    requires_approval = action_requires_approval(
+        tool.risk_level,
+        tool.category.value,
+        passive=getattr(tool, "passive", False),
+        dry_run=tool.dry_run,
+    )
+    details = {"category": tool.category.value}
+    if justification:
+        details["justification"] = justification
+    if gateway is not None and requires_approval and not tool._approval_required():
+        request = await gateway.request_approval(
+            agent_id=f"tool:{tool.name}",
+            action_type=tool.name,
+            description=f"Execute {tool.name} against {target}",
+            target=target,
+            risk_level=RiskLevel(tool.risk_level.value),
+            details=details,
+            timeout_seconds=300,
+        )
+        decision = await gateway.wait_for_approval(request.id)
+        if decision.status is not ApprovalStatus.APPROVED:
+            raise PermissionError(
+                f"{tool.name} execution was not approved: {decision.status.value}"
+            )
+    return await tool.execute_async(target, approval_details=details if gateway else None)
 
 
 async def _run(orchestrator: ScanOrchestrator, execute: bool) -> None:

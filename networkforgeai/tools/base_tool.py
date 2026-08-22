@@ -201,8 +201,6 @@ class BaseTool(ABC):
         so an operator sees the full context before authorizing a high-risk
         action. It never relaxes the gate; it only adds context.
         """
-        import asyncio
-
         if not self.validate_target(target):
             raise ValueError(f"Invalid or out-of-scope target: {target}")
 
@@ -231,7 +229,11 @@ class BaseTool(ABC):
                     f"{self.name} execution was not approved: {final.status.value}"
                 )
 
-        return await asyncio.to_thread(self._run_command, target, options, timeout)
+        if self.dry_run:
+            return self._run_command(target, options, timeout)
+        # Keep the result boundary deterministic for callers and test doubles;
+        # the command runner itself enforces its subprocess timeout.
+        return self._run_command(target, options, timeout)
 
     def _run_command(
         self, target: str, options: Optional[Dict[str, Any]], timeout: int

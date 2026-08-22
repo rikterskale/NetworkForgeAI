@@ -73,6 +73,7 @@ class JwtAnalyzerTool(BaseTool):
     category = ToolCategory.WEB_SCAN
     risk_level = ToolRiskLevel.LOW
     requires_approval = False
+    passive = True
 
     def __init__(self, sandbox_mode: bool = True, dry_run: bool = False):
         super().__init__(sandbox_mode=sandbox_mode, dry_run=dry_run)

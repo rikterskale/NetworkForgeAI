@@ -2,7 +2,8 @@
 Base Agent Class - Foundation for all specialized pentesting agents
 
 All agents must inherit from this base class and implement required methods.
-Agents cannot execute high-risk actions without approval through the gateway.
+Agents cannot execute active or high-risk actions without approval through the
+gateway.
 """
 
 import asyncio
@@ -289,9 +290,10 @@ class BaseAgent(ABC):
 
         Returns ``None`` when no such tool is registered so callers can fall back
         to a clearly-labeled "not executed" result instead of fabricating output.
-        Approval (for high-risk tools) is enforced inside the tool via the shared
-        gateway; scope is enforced by the tool's ``scope_policy``. ``approval_details``
-        is forwarded to enrich the human-facing approval request.
+        Approval policy is enforced at the agent boundary for active actions and
+        inside high-risk tools via the shared gateway; scope is enforced by the
+        tool's ``scope_policy``. ``approval_details`` is forwarded to enrich the
+        human-facing approval request.
         """
         tool = self.tool_registry.get(name)
         if tool is None:

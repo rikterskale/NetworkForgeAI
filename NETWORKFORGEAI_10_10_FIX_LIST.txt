@@ -1,0 +1,418 @@
+NetworkForgeAI — 10/10 Remediation Fix List
+================================================
+
+Purpose
+-------
+This document lists the fixes required to move the project’s assessed areas
+toward a defensible 10/10 standard.
+
+
+P0 FIXES — FOUNDATIONAL
+-----------------------
+
+1. Create one canonical runtime configuration model.
+   - Load Settings() for every CLI scan.
+   - Make CLI flags explicit overrides over environment values.
+   - Wire TARGET_SCOPE, APPROVAL_MODE, REPORT_OUTPUT_DIR,
+     MAX_CONCURRENT_AGENTS, CI_MODE, logging, and session settings into
+     runtime behavior.
+   - Add configuration-precedence tests.
+
+2. Unify approval policy enforcement.
+   - Define policy by action type: passive, active, authenticated,
+     exploitative, and destructive.
+   - Apply the same rules to direct CLI tools, agents, validation runners,
+     dashboard actions, and integrations.
+   - Ensure medium-risk direct CLI scans cannot bypass approval where policy
+     requires it.
+   - Centralize justification enforcement.
+
+3. Establish authoritative dependency management.
+   - Make pyproject.toml the source of truth.
+   - Remove unnecessary packages such as asyncio from requirements.txt.
+   - Generate or validate Docker requirements from package metadata.
+   - Add dependency constraints or lock files.
+   - Test clean installs from both wheel and source.
+
+4. Add real end-to-end testing.
+   - Use local deterministic targets only.
+   - Test real scanner binaries in a fixture container.
+   - Exercise tool -> agent -> approval -> sandbox -> finding -> report.
+   - Test dashboard HTTP endpoints using an ASGI client.
+   - Test restart and state recovery.
+
+5. Replace feature claims with maturity levels.
+   - Separate implemented, unit-tested, integration-tested,
+     end-to-end-tested, and production-hardened.
+   - Update README, capability register, changelog, and historical phase
+     documents.
+   - Remove or qualify vendor-grade and production-ready claims without
+     evidence.
+
+
+OVERALL PROJECT — 10/10
+-----------------------
+
+- Add a formal threat model.
+- Add a security architecture review and threat-model document.
+- Define supported deployment profiles.
+- Publish compatibility guarantees for Python, Docker, scanners, and LLM
+  providers.
+- Add release management, semantic versioning, migration notes, and rollback
+  procedures.
+- Add signed releases, SBOMs, provenance attestations, and verified build
+  artifacts.
+- Establish explicit SLAs/SLOs for scans, approvals, failures, and report
+  durability.
+- Add a public quality dashboard tracking coverage, security findings, flaky
+  tests, and integration status.
+
+
+SCOPE AND APPROVAL SAFETY — 10/10
+---------------------------------
+
+- Make all active actions pass through one policy engine.
+- Enforce persistent environment scope in addition to one-run CLI scope.
+- Normalize and canonicalize targets before comparison:
+  DNS casing, URLs and ports, IPv4/IPv6, CIDR boundaries, IDNs, redirects,
+  and wildcard semantics.
+- Prevent DNS rebinding and target-resolution drift.
+- Bind approvals to exact target, exact command digest, exact tool version,
+  exact scope, operator identity, and expiration time.
+- Require explicit justification for every exploitation and post-exploitation
+  action.
+- Add two-person approval for destructive or critical actions.
+- Add approval replay protection.
+- Add immutable, hash-verifiable audit logs.
+- Add audit-log export and verification commands.
+- Add comprehensive policy tests for every entry point.
+- Add emergency-stop propagation to running subprocesses, not only pending
+  approvals.
+- Enforce process termination and cleanup after cancellation.
+
+
+MULTI-AGENT ORCHESTRATION — 10/10
+---------------------------------
+
+- Define a formal state machine for scans, agents, phases, and tasks.
+- Make every state transition validated and persisted transactionally.
+- Add idempotency keys for phase and task execution.
+- Add durable task queues rather than process-local queues.
+- Support resume after process crash, machine reboot, Docker failure, provider
+  timeout, and partial report write.
+- Add bounded concurrency and backpressure.
+- Add per-agent resource budgets.
+- Add cancellation propagation.
+- Add retry policies differentiated by failure type.
+- Prevent duplicate findings across orchestrator and agent collections.
+- Add deterministic ordering for findings and reports.
+- Add explicit dependency graphs between phases.
+- Add scan locking so two processes cannot mutate the same scan.
+- Add versioned persisted-state schemas and migrations.
+- Add orchestration-level integration tests with real tool fixtures.
+
+
+TOOL INTEGRATIONS — 10/10
+-------------------------
+
+- Define a typed schema for every tool’s options.
+- Validate all options before command construction.
+- Maintain a tool capability registry containing supported versions, required
+  binaries, required capabilities, network requirements, output formats,
+  approval level, and destructive behavior.
+- Add startup preflight checks for every selected tool.
+- Pin or verify tool versions.
+- Add parser fixtures for multiple output versions.
+- Add malformed-output and partial-output tests.
+- Add stable error categories: binary missing, permission denied, timeout,
+  invalid target, sandbox unavailable, parser failure, and tool failure.
+- Add per-tool rate limiting and resource limits.
+- Add output-size limits.
+- Add process-tree cleanup on timeout.
+- Add real local-target integration tests for every supported tool.
+- Make tool availability visible before scan execution.
+- Separate passive tools from active tools in the registry.
+- Add signed or digest-pinned scanner container images.
+
+
+LLM / MODEL LAYER — 10/10
+-------------------------
+
+- Add a provider contract test suite run against every adapter.
+- Add model capability negotiation for streaming, tool calling, JSON mode,
+  vision, and token accounting.
+- Add provider-specific timeout, retry, and rate-limit handling.
+- Add circuit breakers and fallback policies.
+- Add prompt/version tracking in scan state.
+- Add model and provider metadata to every finding.
+- Add structured output validation with strict schemas.
+- Reject unsupported or ambiguous model outputs.
+- Add prompt-injection defenses for tool output, web content, report content,
+  and retrieved documents.
+- Add tests for unsafe model recommendations.
+- Add grounding checks requiring evidence references.
+- Add evaluations for hallucination, scope violation, false-positive rate,
+  unsafe exploit suggestions, and evidence fidelity.
+- Add privacy controls for hosted-provider evidence transmission.
+- Add data-minimization and redaction before provider calls.
+- Add configurable cost and token budgets per scan.
+
+
+SANDBOX EXECUTION — 10/10
+-------------------------
+
+- Pin sandbox images by digest, not mutable tags.
+- Verify image provenance and signatures.
+- Add seccomp and AppArmor/SELinux profiles.
+- Use a dedicated non-root container user.
+- Restrict filesystem mounts explicitly.
+- Make writable paths narrowly scoped and temporary.
+- Add CPU, memory, PID, and disk quotas.
+- Add network egress allow-lists instead of only bridge/host modes.
+- Prevent access to cloud metadata endpoints.
+- Block host Docker socket access.
+- Add subprocess process-tree cleanup.
+- Add sandbox health checks before execution.
+- Record image digest, capabilities, network mode, and command digest in
+  audit records.
+- Test escape resistance and resource exhaustion.
+- Clearly document platform limitations for Docker sandbox support.
+
+
+REPORTING — 10/10
+-----------------
+
+- Make REPORT_FORMATS control actual output generation.
+- Add a versioned report schema.
+- Add deterministic report generation.
+- Include scan metadata, scope, approval history, tool versions, model
+  metadata, evidence provenance, timestamps, limitations, and partial-scan
+  status.
+- Add complete HTML and PDF reports, not only executive summaries.
+- Add templating and branding support.
+- Add report signing and integrity hashes.
+- Add report redaction profiles.
+- Add configurable severity and status policies.
+- Add SARIF rule metadata and stable rule identifiers.
+- Add report pagination for large scans.
+- Add report rendering tests.
+- Add report compatibility tests across schema versions.
+- Add export connectors as actual workflows, not only standalone helpers.
+- Add explicit unvalidated, advisory, and confirmed distinctions.
+
+
+INTEGRATIONS — 10/10
+--------------------
+
+- Add contract tests for every integration.
+- Add retry, backoff, and circuit breakers.
+- Add idempotency keys to prevent duplicate tickets and events.
+- Add provider-specific response validation.
+- Add rate-limit handling.
+- Add webhook signature verification where supported.
+- Add outbound allow-listing.
+- Add configurable proxy support.
+- Add secret-manager-backed credentials by default.
+- Add integration health checks.
+- Add dry-run modes for every external connector.
+- Add structured delivery status and failure reasons.
+- Add dead-letter or retry queues.
+- Add end-to-end tests using local mock services.
+- Document exact permissions required for every connector.
+
+
+DASHBOARD / API — 10/10
+-----------------------
+
+- Make the dashboard attach to and discover active scans reliably.
+- Add scan creation, resume, attach, and recovery workflows.
+- Add real HTTP tests for every endpoint.
+- Add OpenAPI schemas and generated API documentation.
+- Add request validation models instead of untyped dictionaries.
+- Add CSRF protection where browser sessions are introduced.
+- Add rate limiting.
+- Add audit logging for every operator action.
+- Add pagination limits and maximum response sizes.
+- Add WebSocket or server-sent event streaming for live status.
+- Add optimistic concurrency controls for approvals.
+- Add approval conflict handling.
+- Add explicit API versioning.
+- Add content-disposition/download support for binary reports.
+- Add secure headers and configurable CORS.
+- Add health/readiness/liveness separation.
+- Add metrics for scan state, approvals, failures, latency, and queue depth.
+- Add role permissions beyond operator/viewer if multi-team use is intended.
+
+
+DOCUMENTATION ACCURACY — 10/10
+------------------------------
+
+- Generate CLI documentation from the parser and verify it in CI.
+- Generate configuration documentation from the settings model.
+- Generate tool tables from the registry.
+- Add automated checks for documented environment variables.
+- Add automated checks for documented commands.
+- Add documentation tests that execute every quick-start command in a safe
+  fixture.
+- Mark all optional dependencies explicitly.
+- Document actual default paths and precedence.
+- Document what is and is not connected to the default workflow.
+- Replace historical complete claims with dated status snapshots.
+- Add a limitations page.
+- Add a compatibility matrix.
+- Add architecture diagrams that match runtime behavior.
+- Add security-control traceability from documentation to tests.
+- Add a documentation freshness check.
+
+
+USER READINESS — 10/10
+----------------------
+
+- Add a comprehensive doctor command.
+- Check Python version, package installation, CLI entry point, Docker daemon,
+  Docker permissions, image presence, image digest, required binaries, network
+  mode, capabilities, writable directories, report directory, environment
+  variables, provider SDKs, credentials without exposing secrets, dashboard
+  token quality, scope validity, disk space, memory, and platform support.
+- Distinguish passed, failed, skipped, and unverified checks.
+- Make strict mode the default for production use.
+- Provide remediation text for every failed check.
+- Add JSON and human-readable outputs.
+- Add preflight execution before every real scan.
+- Add a safe local fixture mode that validates the complete workflow.
+
+
+INSTALLATION AND USAGE — 10/10
+------------------------------
+
+- Publish tested installation paths for source/venv, wheel, Docker, Compose,
+  Windows, macOS, Linux, and air-gapped environments.
+- Use one dependency source.
+- Provide pinned installation lock files.
+- Publish release wheels.
+- Add networkforgeai init.
+- Add networkforgeai doctor.
+- Add networkforgeai config show --safe.
+- Add shell completion.
+- Add clear command groups: scan, tools, reports, config, dashboard, doctor.
+- Standardize exit codes.
+- Add JSON output to every operational command.
+- Add a first-run safe fixture scan.
+- Provide examples for each profile and approval mode.
+- Add upgrade and rollback documentation.
+- Add uninstall and cleanup instructions.
+
+
+TROUBLESHOOTING — 10/10
+-----------------------
+
+- Add symptom -> cause -> diagnostic -> remediation structure.
+- Add troubleshooting for every readiness check.
+- Add a diagnostic bundle command collecting versions, safe configuration
+  statuses, Docker state, tool inventory, recent errors, scan state, and audit
+  status while excluding secrets and target evidence by default.
+- Add troubleshooting for crash recovery, corrupted state, disk exhaustion,
+  Docker permissions, read-only mounts, process leaks, stale approvals,
+  provider rate limits, model timeouts, scanner parser drift, report rendering,
+  and dashboard attach failures.
+- Add error codes linked to troubleshooting entries.
+- Add a support bundle format.
+- Add operational runbooks for emergency stop and audit-log preservation.
+
+
+UX — 10/10
+----------
+
+- Separate machine-readable stdout from human-readable stderr.
+- Add consistent progress events.
+- Add scan preflight summary showing target, scope, exclusions, profile, tools,
+  approval mode, sandbox image, network mode, and expected outputs.
+- Add explicit confirmation before real scans.
+- Clearly distinguish rejected, skipped, unavailable, failed, no findings,
+  partial, and completed states.
+- Add resumable scan commands.
+- Add interactive approval queue filtering.
+- Add keyboard shortcuts and bulk-safe actions in the dashboard.
+- Add accessible, color-independent status indicators.
+- Add consistent timestamps and correlation IDs.
+- Add machine-readable event streaming.
+- Add concise summaries for long-running operations.
+- Add better recovery guidance directly in CLI output.
+- Add shell completion and command discovery.
+
+
+LOGGING AND OBSERVABILITY — 10/10
+---------------------------------
+
+- Add structured event types and schemas.
+- Separate operational logs and immutable security audit logs.
+- Add rotating file handlers.
+- Add configurable retention and archival.
+- Add log integrity hashes.
+- Add audit verification tooling.
+- Add OpenTelemetry traces.
+- Add trace IDs across scan, phase, agent, task, tool, approval, and report.
+- Add persistent metrics export.
+- Add queue depth, latency, timeout, retry, and failure metrics.
+- Add structured error codes.
+- Add subprocess lifecycle events.
+- Add provider cost/token metrics.
+- Add redaction tests against realistic scanner outputs.
+- Add configurable evidence logging policies.
+- Add alerting hooks for emergency stop, repeated failures, and suspicious
+  scope denials.
+
+
+CI.YML — 10/10
+--------------
+
+- Move SBOM and pip-audit after clean wheel installation.
+- Audit the actual installed artifact environment.
+- Add artifact signing and provenance verification.
+- Add dependency lock verification.
+- Add secret scanning.
+- Add stronger SAST.
+- Add container vulnerability scanning.
+- Add Docker image signing.
+- Add Dockerfile linting.
+- Add shell/workflow linting.
+- Add an actual end-to-end fixture scan.
+- Add dashboard API integration tests.
+- Add configuration-precedence tests.
+- Add report rendering tests.
+- Add scan recovery tests.
+- Add Python 3.14 validation or explicitly exclude it.
+- Add coverage threshold reporting and trend comparison.
+- Add flaky-test detection and quarantine policy.
+- Add release/tag workflow.
+- Add protected-environment approval for publishing.
+- Add artifact retention policies.
+- Add CI for all parity templates.
+- Make parity templates include generated docs checks, readiness, container
+  validation, package installation, and findings policy.
+- Add scheduled dependency-update validation.
+- Add scheduled scanner-version compatibility tests.
+- Add scheduled live-provider tests with explicit failure classification.
+
+
+RECOMMENDED IMPLEMENTATION ORDER
+--------------------------------
+
+1. Canonical configuration wiring.
+2. Unified approval policy.
+3. Dependency consolidation.
+4. Real end-to-end fixture workflow.
+5. Documentation correction and generated references.
+6. Doctor command and preflight UX.
+7. Dashboard attach/recovery and HTTP testing.
+8. Structured logging and audit verification.
+9. CI SBOM, secret scanning, SAST, and artifact signing.
+10. Full provider, tool, and integration contract-test matrix.
+
+
+Target outcome
+-------------
+
+These changes address the largest systemic weaknesses first and should raise
+the project from approximately 7.2/10 to 8.5+/10 before the more expensive
+production-hardening work is completed.

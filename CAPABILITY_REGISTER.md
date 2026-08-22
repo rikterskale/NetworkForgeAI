@@ -2,7 +2,11 @@
 
 **Last Updated:** Phase 9 In Progress
 **Status:** Validation engine, compliance mappings, HTML reports, and CLI approval/status UI delivered; strict MyPy gate extended
-**Safety Model:** Human-in-the-Loop (HITL) Required for All Actions
+**Safety Model:** Explicit scope for every action; human approval for active and high-risk actions
+
+Feature status is evidence-based. “Implemented” means the code path exists;
+it does not by itself mean integration-tested, end-to-end-tested, or
+production-hardened. See [docs/maturity.md](docs/maturity.md).
 
 ---
 
@@ -26,7 +30,7 @@
 | INF-001 | Docker-based sandbox environment | ✅ | Multi-container setup with isolated network |
 | INF-002 | Environment configuration management | ✅ | `.env.example` with all required variables |
 | INF-003 | Python package structure | ✅ | Modular `networkforgeai` package |
-| INF-004 | Dependency management | ✅ | `requirements.txt` with pinned versions |
+| INF-004 | Dependency management | 🚧 | `pyproject.toml` is authoritative; lock/reproducibility work remains |
 | INF-005 | Git repository initialization | ✅ | Ready for version control |
 
 ### Safety & Governance
@@ -34,7 +38,7 @@
 |----|------------|--------|-------|
 | SAF-001 | Human-in-the-Loop approval gateway | ✅ | `ApprovalGateway` class implemented |
 | SAF-002 | Risk level classification system | ✅ | LOW/MEDIUM/HIGH/CRITICAL levels |
-| SAF-003 | Approval requirement mapping | ✅ | HIGH/CRITICAL require explicit approval |
+| SAF-003 | Approval requirement mapping | ✅ | Active and HIGH/CRITICAL actions use centralized approval policy |
 | SAF-004 | Audit trail logging | ✅ | JSONL format with timestamps |
 | SAF-005 | Scope enforcement engine | ✅ | Domain, wildcard, IP, CIDR, and exclusion matching |
 | SAF-006 | Emergency stop mechanism | ✅ | Cancels pending approvals and blocks new actions |

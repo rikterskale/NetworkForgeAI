@@ -4,7 +4,12 @@ import subprocess
 
 import pytest
 
-from networkforgeai.core.approval_gateway import ApprovalGateway, ApprovalStatus, RiskLevel
+from networkforgeai.core.approval_gateway import (
+    ApprovalGateway,
+    ApprovalStatus,
+    RiskLevel,
+    action_requires_approval,
+)
 from networkforgeai.core.scope import ScopePolicy
 from networkforgeai.tools.base_tool import BaseTool, ToolCategory, ToolRiskLevel
 
@@ -31,6 +36,13 @@ def test_scope_policy_handles_urls_wildcards_and_exclusions():
     assert not policy.contains("https://admin.example.com/login")
     assert policy.contains("192.0.2.42")
     assert not policy.contains("198.51.100.42")
+
+
+def test_centralized_action_approval_policy():
+    assert action_requires_approval(RiskLevel.HIGH, "reporting")
+    assert action_requires_approval("medium", "network_scan")
+    assert not action_requires_approval("low", "web_scan", passive=True)
+    assert not action_requires_approval("critical", "exploitation", dry_run=True)
 
 
 def test_high_risk_tool_fails_closed_without_approval_gateway():

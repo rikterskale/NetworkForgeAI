@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ..observability import bind_log_context, increment_metric
-from ..reporting import to_csv, to_json, to_pdf, to_sarif
+from ..reporting import to_csv, to_html, to_json, to_pdf, to_sarif
 from .approval_gateway import ApprovalGateway, _as_utc
 from .base_agent import AgentState, AgentStatus, BaseAgent
 from .knowledge_base import KnowledgeBase
@@ -52,9 +52,15 @@ class ScanConfig:
     scope: List[str] = field(default_factory=list)  # Allowed IP ranges, domains
     excluded: List[str] = field(default_factory=list)  # Excluded targets
     max_agents: int = 5
-    approval_mode: str = "manual"  # manual, auto-low, auto-approved
+    approval_mode: str = "manual"  # manual/strict, moderate, lenient
     timeout_hours: int = 24
     save_dir: str = "./scans"
+    report_formats: List[str] = field(
+        default_factory=lambda: ["markdown", "json", "csv", "sarif", "pdf"]
+    )
+    audit_all_approvals: bool = True
+    block_destructive_actions: bool = True
+    require_justification_for_exploitation: bool = True
 
 
 @dataclass
@@ -97,6 +103,9 @@ class ScanOrchestrator:
         self.approval_gateway = ApprovalGateway(
             mode=config.approval_mode,
             audit_log_path=Path(config.save_dir) / "approval_audit.jsonl",
+            audit_enabled=config.audit_all_approvals,
+            block_destructive_actions=config.block_destructive_actions,
+            require_justification_for_exploitation=config.require_justification_for_exploitation,
         )
         self.shared_context: Dict[str, Any] = {
             "target": config.target,
@@ -385,6 +394,10 @@ class ScanOrchestrator:
                 "scope": self.config.scope,
                 "excluded": self.config.excluded,
                 "approval_mode": self.config.approval_mode,
+                "report_formats": self.config.report_formats,
+                "audit_all_approvals": self.config.audit_all_approvals,
+                "block_destructive_actions": self.config.block_destructive_actions,
+                "require_justification_for_exploitation": self.config.require_justification_for_exploitation,
             },
             "shared_context": self.shared_context,
             "agent_count": len(self.agents),
@@ -405,18 +418,23 @@ class ScanOrchestrator:
         """Save all findings to disk in multiple formats."""
         all_findings = self.get_all_findings()
 
-        # JSON format
-        findings_file = self.save_dir / "findings.json"
-        findings_file.write_text(to_json(all_findings))
-        (self.save_dir / "findings.csv").write_text(to_csv(all_findings))
-        (self.save_dir / "findings.sarif").write_text(to_sarif(all_findings))
-        (self.save_dir / "executive-summary.pdf").write_bytes(to_pdf(all_findings))
+        formats = {item.lower() for item in self.config.report_formats}
+        if "json" in formats:
+            (self.save_dir / "findings.json").write_text(to_json(all_findings))
+        if "csv" in formats:
+            (self.save_dir / "findings.csv").write_text(to_csv(all_findings))
+        if "sarif" in formats:
+            (self.save_dir / "findings.sarif").write_text(to_sarif(all_findings))
+        if "pdf" in formats:
+            (self.save_dir / "executive-summary.pdf").write_bytes(to_pdf(all_findings))
+        if "html" in formats:
+            (self.save_dir / "report.html").write_text(to_html(all_findings), encoding="utf-8")
 
         # Markdown report
-        md_report = self._generate_markdown_report()
-        md_file = self.save_dir / "report.md"
-        with open(md_file, "w", encoding="utf-8") as f:
-            f.write(md_report)
+        if "markdown" in formats:
+            md_report = self._generate_markdown_report()
+            md_file = self.save_dir / "report.md"
+            md_file.write_text(md_report, encoding="utf-8")
 
     def _generate_markdown_report(self) -> str:
         """Generate a vendor-grade Markdown report from findings.
@@ -521,6 +539,14 @@ class ScanOrchestrator:
             excluded=state["config"]["excluded"],
             approval_mode=state["config"]["approval_mode"],
             save_dir=save_base_dir,
+            report_formats=state["config"].get(
+                "report_formats", ["markdown", "json", "csv", "sarif", "pdf"]
+            ),
+            audit_all_approvals=state["config"].get("audit_all_approvals", True),
+            block_destructive_actions=state["config"].get("block_destructive_actions", True),
+            require_justification_for_exploitation=state["config"].get(
+                "require_justification_for_exploitation", True
+            ),
         )
 
         orchestrator = cls(config)

@@ -14,17 +14,18 @@ RUN apt-get update && apt-get install -y \
     jq \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY requirements.txt .
+# Copy package metadata first for better dependency-layer caching
+COPY pyproject.toml README.md LICENSE ./
 
 # Keep packaging tools current so the runtime image does not ship known toolchain vulnerabilities.
 RUN python -m pip install --no-cache-dir --upgrade "pip>=26.1" "setuptools>=83.0.0"
 
-# Install Python dependencies
-RUN python -m pip install --no-cache-dir -r requirements.txt
-
 # Copy application code
 COPY networkforgeai/ ./networkforgeai/
+
+# Install the authoritative package dependency graph
+RUN python -m pip install --no-cache-dir ".[runtime,llm]"
+
 # Create necessary directories
 RUN mkdir -p /app/workspaces /app/reports /app/logs /app/config
 

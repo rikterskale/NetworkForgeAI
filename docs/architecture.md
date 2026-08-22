@@ -33,10 +33,11 @@ networkforgeai/
 
 ## Execution flow
 
-1. **CLI bootstrap** (`cli.py`): parses arguments, builds a `ScopePolicy` from
-   `--scope`/`--exclude`, and refuses to proceed when the target is outside
-   scope. Single-tool runs construct the tool directly; `--orchestrate` builds
-   a `ScanOrchestrator`.
+1. **CLI bootstrap** (`cli.py`): loads environment configuration, applies
+   explicit CLI overrides, builds a `ScopePolicy` from the resolved scope and
+   `--exclude`, and refuses to proceed when the target is outside scope.
+   Single-tool and orchestrated runs use the same resolved output directory,
+   approval mode, report formats, and audit setting.
 2. **Orchestration** (`core/orchestrator.py`): owns an `ApprovalGateway`,
    `MessageBus`, `KnowledgeBase`, and `TaskQueue`. Agents are registered with
    shared references to these. The scan runs in phases (reconnaissance,
@@ -47,10 +48,11 @@ networkforgeai/
    is configured, request advisory hypotheses. Results are tagged by source and
    never fabricated; missing tools/models yield an explicit status note.
 4. **Tool execution** (`tools/base_tool.py`): commands are built, validated
-   against scope, and wrapped in dry-run/sandbox policy. HIGH/CRITICAL tools
-   require approval — `execute_async` awaits the gateway on the running loop and
-   offloads the subprocess to a worker thread; the synchronous `execute` path
-   uses the gateway's async protocol from outside a loop.
+   against scope, and wrapped in dry-run/sandbox policy. Active actions use the
+   centralized approval policy; HIGH/CRITICAL tools enforce their own gateway
+   request, while direct CLI medium-risk actions are approved before execution.
+   `execute_async` awaits the gateway on the running loop and offloads the
+   subprocess to a worker thread.
 5. **Evidence**: findings flow into the orchestrator's collection and are
    persisted as `scan_state.json`, `findings.{json,csv,sarif}`, and
    `report.md` under the scan directory.

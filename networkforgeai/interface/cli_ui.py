@@ -32,7 +32,12 @@ class ApprovalPrompt:
 
     async def __call__(self, request: ApprovalRequest) -> None:
         self._render(request)
-        if request.status is not ApprovalStatus.PENDING or not self.interactive:
+        if request.status is not ApprovalStatus.PENDING:
+            return
+        if not self.interactive:
+            await self.gateway.reject(
+                request.id, "non_interactive_cli", "approval requires an interactive operator"
+            )
             return
         try:
             answer = input(

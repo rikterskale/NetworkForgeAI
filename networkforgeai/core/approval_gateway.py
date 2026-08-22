@@ -43,6 +43,34 @@ class RiskLevel(Enum):
     CRITICAL = "critical"  # Destructive tests, DoS, data modification
 
 
+def action_requires_approval(
+    risk_level: RiskLevel | str,
+    category: str = "",
+    *,
+    passive: bool = False,
+    dry_run: bool = False,
+) -> bool:
+    """Centralize approval requirements for executable actions."""
+    if dry_run or passive:
+        return False
+    normalized_risk = (
+        risk_level.value if isinstance(risk_level, RiskLevel) else str(risk_level).lower()
+    )
+    if normalized_risk in {RiskLevel.HIGH.value, RiskLevel.CRITICAL.value}:
+        return True
+    return category in {
+        "network_scan",
+        "web_scan",
+        "vulnerability_scan",
+        "password_attack",
+        "cloud",
+        "post_exploitation",
+        "exploitation",
+        "wireless",
+        "social_engineering",
+    }
+
+
 @dataclass
 class ApprovalRequest:
     """Represents a request requiring human approval."""
@@ -118,12 +146,23 @@ class ApprovalGateway:
     - Auto-approved: Only for read-only reconnaissance (use with caution)
     """
 
-    def __init__(self, mode: str = "manual", audit_log_path: Optional[str | Path] = None):
+    def __init__(
+        self,
+        mode: str = "manual",
+        audit_log_path: Optional[str | Path] = None,
+        *,
+        audit_enabled: bool = True,
+        block_destructive_actions: bool = False,
+        require_justification_for_exploitation: bool = False,
+    ):
         self.mode = mode
         self.requests: Dict[str, ApprovalRequest] = {}
         self.callbacks: Dict[str, Callable[[ApprovalRequest], Awaitable[None]]] = {}
         self._lock = asyncio.Lock()
         self.audit_log_path = Path(audit_log_path) if audit_log_path else None
+        self.audit_enabled = audit_enabled
+        self.block_destructive_actions = block_destructive_actions
+        self.require_justification_for_exploitation = require_justification_for_exploitation
         self._emergency_stop = False
         self._emergency_stop_reason: Optional[str] = None
 
@@ -159,6 +198,15 @@ class ApprovalGateway:
             )
         if isinstance(risk_level, str):
             risk_level = RiskLevel(risk_level.lower())
+        request_details = details or {}
+        if self.block_destructive_actions and request_details.get("destructive") is True:
+            raise PermissionError("Destructive actions are blocked by runtime policy")
+        if (
+            self.require_justification_for_exploitation
+            and risk_level is RiskLevel.CRITICAL
+            and not str(request_details.get("justification") or "").strip()
+        ):
+            raise PermissionError("A written justification is required for critical actions")
 
         request = ApprovalRequest(
             agent_id=agent_id,
@@ -166,7 +214,7 @@ class ApprovalGateway:
             description=description,
             target=target,
             risk_level=risk_level,
-            details=details or {},
+            details=request_details,
             command_digest=command_digest,
             expires_at=datetime.now(timezone.utc) + timedelta(seconds=timeout_seconds),
         )
@@ -341,7 +389,7 @@ class ApprovalGateway:
         return self._emergency_stop
 
     def _audit(self, request: ApprovalRequest) -> None:
-        if not self.audit_log_path:
+        if not self.audit_enabled or not self.audit_log_path:
             return
         self.audit_log_path.parent.mkdir(parents=True, exist_ok=True)
         payload = request.to_dict()

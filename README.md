@@ -4,6 +4,10 @@
 
 NetworkForgeAI is a security validation platform that combines AI-assisted analysis with mandatory human approval gates for all offensive operations. Designed for authorized red teams, penetration testers, and cyber-range operators.
 
+Feature maturity is tracked separately from code availability. See the
+[feature maturity and evidence policy](docs/maturity.md) before treating an
+integration or capability as production-hardened.
+
 ## ⚠️ Ethical Usage Notice
 
 This tool is **strictly** for:
@@ -19,7 +23,7 @@ This tool is **strictly** for:
 NetworkForgeAI provides AI-assisted security testing with:
 - Multi-agent collaboration for recon, analysis, and planning
 - **Mandatory human approval** for all exploitation attempts
-- Real-time dashboard with live steering capabilities
+- Persisted-report dashboard by default, with live steering when attached to an active scan
 - Validated findings with reproduction steps (not automated exploit delivery)
 - Comprehensive reporting for compliance and remediation
 
@@ -257,6 +261,7 @@ jobs:
 - [Interface Guide](docs/interfaces.md)
 - [API Reference](docs/api-reference.md)
 - [Architecture Overview](docs/architecture.md)
+- [Feature Maturity Policy](docs/maturity.md)
 - [FAQ](docs/faq.md)
 - [Ethical Guidelines](docs/ethics.md)
 - [Contributing](CONTRIBUTING.md)

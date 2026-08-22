@@ -67,6 +67,24 @@ def test_single_tool_dry_run(capsys):
     assert payload["success"] is True
 
 
+def test_scan_uses_environment_runtime_defaults(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("TARGET_SCOPE", "example.com")
+    monkeypatch.setenv("APPROVAL_MODE", "moderate")
+    monkeypatch.setenv("REPORT_OUTPUT_DIR", str(tmp_path))
+    monkeypatch.setenv("REPORT_FORMATS", '["json"]')
+
+    assert main(["--target", "example.com", "--orchestrate", "--dry-run"]) == 0
+    capsys.readouterr()
+
+    states = list(tmp_path.glob("*/scan_state.json"))
+    assert states
+    state = json.loads(states[0].read_text(encoding="utf-8"))
+    assert state["config"]["scope"] == ["example.com"]
+    assert state["config"]["approval_mode"] == "moderate"
+    assert state["config"]["report_formats"] == ["json"]
+    assert not (states[0].parent / "report.md").exists()
+
+
 def test_orchestrated_dry_run_produces_only_real_findings(tmp_path, capsys):
     rc = main(
         [

@@ -113,6 +113,18 @@ class Settings(BaseSettings):
             return []
         return [t.strip() for t in self.target_scope.split(",") if t.strip()]
 
+    def resolve_scope(self, cli_scope: list[str] | None) -> list[str]:
+        """Resolve one-run CLI scope over the persistent environment scope."""
+        return list(cli_scope) if cli_scope else self.parsed_target_scope
+
+    def resolve_output_dir(self, cli_output_dir: str | None) -> str:
+        """Resolve a one-run output directory over the configured directory."""
+        return cli_output_dir or self.report_output_dir
+
+    def resolve_approval_mode(self, cli_mode: str | None) -> str:
+        """Resolve a one-run approval mode over the configured mode."""
+        return cli_mode or self.approval_mode.value
+
     @property
     def is_strict_mode(self) -> bool:
         """Check if running in strict approval mode."""

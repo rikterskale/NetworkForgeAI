@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
 from ..core import mitre
-from ..core.approval_gateway import RiskLevel
+from ..core.approval_gateway import RiskLevel, action_requires_approval
 from ..core.base_agent import AgentStatus, BaseAgent
 from ..core.enrichment import enrich_findings
 
@@ -96,7 +96,13 @@ async def _run_gated_scan(
     is_dry = getattr(tool, "dry_run", False)
     self_gates = bool(getattr(tool, "_approval_required", lambda: False)())
 
-    if not is_dry and not self_gates:
+    requires_policy_approval = action_requires_approval(
+        getattr(tool, "risk_level", "medium"),
+        getattr(getattr(tool, "category", None), "value", ""),
+        passive=getattr(tool, "passive", False),
+        dry_run=is_dry,
+    )
+    if requires_policy_approval and not is_dry and not self_gates:
         approved, _ = await agent.request_approval(
             action_type=action_type,
             description=description,
@@ -393,10 +399,16 @@ class NetworkExploitationAgent(ContextAgent):
             target = str(entry.get("target") or context.get("target", ""))
             module = str(entry["module"])
             justification = str(entry.get("justification") or "").strip()
+            if not justification:
+                statuses.append(
+                    {"target": target, "module": module, "status": "missing_justification"}
+                )
+                continue
             options = {
                 "module": module,
                 "payload": entry.get("payload"),
                 "set_options": entry.get("set_options") or {},
+                "check_only": bool(entry.get("check_only", False)),
             }
             try:
                 tool_result = await self.run_tool(
@@ -407,8 +419,8 @@ class NetworkExploitationAgent(ContextAgent):
                         "framework": "metasploit",
                         "module": module,
                         "payload": entry.get("payload"),
-                        "justification": justification
-                        or "(operator must supply justification at approval time)",
+                        "justification": justification,
+                        "destructive": not bool(entry.get("check_only", False)),
                     },
                 )
             except PermissionError:
