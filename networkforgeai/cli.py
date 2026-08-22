@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import json
 from pathlib import Path
+from typing import Any
 
 from . import __version__
 from .agents.recon_agent import ReconAgent
@@ -113,13 +114,45 @@ def main(argv: list[str] | None = None) -> int:
         from .models.model_factory import ModelFactory
 
         model_adapter = ModelFactory.create_from_env(override_provider=args.provider)
-    orchestrator.register_agent(ReconAgent(model_adapter=model_adapter))
-    orchestrator.register_agent(VulnerabilityScannerAgent(model_adapter=model_adapter))
+    tool_registry = _build_tool_registry(policy, orchestrator, args)
+    orchestrator.register_agent(
+        ReconAgent(model_adapter=model_adapter, tool_registry=tool_registry)
+    )
+    orchestrator.register_agent(
+        VulnerabilityScannerAgent(model_adapter=model_adapter, tool_registry=tool_registry)
+    )
     orchestrator.register_agent(PlanningAgent())
     orchestrator.register_agent(QualityAssuranceAgent())
     asyncio.run(_run(orchestrator, args.orchestrate))
     print(f"Scan {orchestrator.scan_id} completed: {orchestrator.save_dir}")
     return 0
+
+
+def _build_tool_registry(
+    policy: ScopePolicy, orchestrator: ScanOrchestrator, args: argparse.Namespace
+) -> dict[str, Any]:
+    """Instantiate real tool wrappers whose binaries are available.
+
+    In ``--dry-run`` mode all wrappers are registered (execution is short-circuited
+    before the binary is invoked). Otherwise only tools whose binary is present on
+    ``PATH`` are registered, so agents fall back to an honest "tool unavailable"
+    status instead of failing or fabricating output.
+    """
+    import shutil
+
+    registry: dict[str, Any] = {}
+    for name, tool_class in get_available_tools().items():
+        binary = tool_class.name
+        if not args.dry_run and shutil.which(binary) is None:
+            continue
+        registry[name] = get_tool_by_name(
+            name,
+            dry_run=args.dry_run,
+            sandbox_mode=not args.host_execution,
+            scope_policy=policy,
+            approval_gateway=orchestrator.approval_gateway,
+        )
+    return registry
 
 
 def _list_reports(output_dir: str) -> list[str]:

@@ -177,6 +177,50 @@ class BaseTool(ABC):
                     f"{self.name} execution was not approved: {request.status.value}"
                 )
 
+        return self._run_command(target, options, timeout)
+
+    async def execute_async(
+        self, target: str, options: Optional[Dict[str, Any]] = None, timeout: int = 300
+    ) -> ToolResult:
+        """Async execution for use inside an event loop (e.g. agent orchestration).
+
+        Approval is awaited through the shared gateway so the CLI/dashboard
+        callbacks fire on the running loop, and the blocking subprocess is
+        offloaded to a worker thread. This avoids the nested-event-loop
+        limitation of the synchronous :meth:`execute` path.
+        """
+        import asyncio
+
+        if not self.validate_target(target):
+            raise ValueError(f"Invalid or out-of-scope target: {target}")
+
+        if self._approval_required() and not self.dry_run:
+            if self.approval_gateway is None:
+                raise PermissionError(f"{self.name} requires an approval gateway")
+            request = await self.approval_gateway.request_approval(
+                agent_id=f"tool:{self.name}",
+                action_type=self.name,
+                description=f"Execute {self.name} against {target}",
+                target=target,
+                risk_level=RiskLevel(self.risk_level.value),
+                details={"command_builder": self.name},
+                timeout_seconds=timeout,
+            )
+            final = await self.approval_gateway.wait_for_approval(request.id)
+            if final.status != ApprovalStatus.APPROVED:
+                raise PermissionError(
+                    f"{self.name} execution was not approved: {final.status.value}"
+                )
+
+        return await asyncio.to_thread(self._run_command, target, options, timeout)
+
+    def _run_command(
+        self, target: str, options: Optional[Dict[str, Any]], timeout: int
+    ) -> ToolResult:
+        """Build the command and run it, returning a normalized ``ToolResult``.
+
+        Callers are responsible for approval enforcement before invoking this.
+        """
         command = self.build_command(target, options)
         command_str = " ".join(command)
 

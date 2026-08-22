@@ -18,6 +18,19 @@ from .knowledge_base import KnowledgeBase
 from .message_bus import AgentMessage, MessageBus
 
 
+def _extract_json_array(text: str) -> str:
+    """Return the first ``[...]`` JSON array substring, or the text unchanged.
+
+    Models often wrap JSON in prose or code fences; this isolates the array so a
+    strict ``json.loads`` can succeed without executing anything.
+    """
+    start = text.find("[")
+    end = text.rfind("]")
+    if start != -1 and end != -1 and end > start:
+        return text[start : end + 1]
+    return text
+
+
 class AgentStatus(Enum):
     IDLE = "idle"
     RUNNING = "running"
@@ -258,6 +271,68 @@ class BaseAgent(ABC):
         if name not in self.tool_registry:
             raise KeyError(f"Tool is not registered for agent: {name}")
         return self.tool_registry[name]
+
+    def has_tool(self, name: str) -> bool:
+        """Return whether a runnable tool is registered under ``name``."""
+        return name in self.tool_registry and self.tool_registry[name] is not None
+
+    async def run_tool(
+        self,
+        name: str,
+        target: str,
+        options: Optional[Dict[str, Any]] = None,
+        timeout: int = 300,
+    ) -> Any:
+        """Run a registered tool wrapper against ``target`` and return its ``ToolResult``.
+
+        Returns ``None`` when no such tool is registered so callers can fall back
+        to a clearly-labeled "not executed" result instead of fabricating output.
+        Approval (for high-risk tools) is enforced inside the tool via the shared
+        gateway; scope is enforced by the tool's ``scope_policy``.
+        """
+        tool = self.tool_registry.get(name)
+        if tool is None:
+            return None
+        if getattr(tool, "approval_gateway", None) is None and self.approval_gateway is not None:
+            tool.approval_gateway = self.approval_gateway
+        return await tool.execute_async(target, options, timeout)
+
+    async def llm_hypotheses(
+        self, prompt: str, context: Dict[str, Any], *, examples: Optional[List[Any]] = None
+    ) -> List[Dict[str, Any]]:
+        """Ask the model for prioritized, advisory hypotheses derived from real evidence.
+
+        Output is always tagged ``source="llm_hypothesis"`` and is never promoted
+        to a confirmed finding automatically. Returns an empty list when no model
+        is configured or the response cannot be parsed as structured data.
+        """
+        if self.model_adapter is None:
+            return []
+        import json
+
+        instruction = (
+            f"{prompt}\n\nReturn ONLY a JSON array of objects, each with keys "
+            '"title", "type", "severity", "confidence" (0-1), and "rationale". '
+            "Base every item strictly on the supplied evidence; do not invent findings."
+        )
+        try:
+            response = await self.analyze_context(instruction, context, examples=examples)
+        except Exception:
+            return []
+        text = getattr(response, "content", response)
+        if not isinstance(text, str):
+            return []
+        try:
+            parsed = json.loads(_extract_json_array(text))
+        except (ValueError, json.JSONDecodeError):
+            return []
+        if not isinstance(parsed, list):
+            return []
+        hypotheses: List[Dict[str, Any]] = []
+        for item in parsed:
+            if isinstance(item, dict):
+                hypotheses.append({**item, "source": "llm_hypothesis", "validated": False})
+        return hypotheses
 
     def _summarize_context(self) -> str:
         """Create a summary of current context for state persistence."""

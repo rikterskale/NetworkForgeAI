@@ -2,15 +2,20 @@
 Reconnaissance Agent - Passive and active information gathering
 
 Capabilities:
-- Subdomain enumeration
-- Port scanning (non-intrusive)
-- Service fingerprinting
-- Technology stack detection
-- OSINT collection
+- Host liveness / DNS resolution (passive, stdlib)
+- Port scanning via the registered ``nmap``/``masscan`` tool wrappers
+- Service fingerprinting from real scan output
+- LLM-assisted triage of collected evidence (advisory only)
 
-All active scanning requires human approval.
+This agent never fabricates results. When a required tool wrapper is not
+registered (or its binary is unavailable), it records an explicit
+``*_status`` note in ``context_updates`` and returns no findings rather than
+inventing data. Active scanning requires human approval through the gateway.
 """
 
+from __future__ import annotations
+
+import socket
 from typing import Any, Dict, List
 
 from ..core.approval_gateway import RiskLevel
@@ -18,13 +23,7 @@ from ..core.base_agent import AgentStatus, BaseAgent
 
 
 class ReconAgent(BaseAgent):
-    """
-    AI-powered reconnaissance agent for information gathering.
-
-    Operates in two modes:
-    - Passive: OSINT, public records, DNS lookups (auto-approved in auto-low mode)
-    - Active: Port scanning, service probing (requires explicit approval)
-    """
+    """Reconnaissance agent that drives real tool wrappers, not simulations."""
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(name="ReconAgent", **kwargs)
@@ -43,23 +42,15 @@ class ReconAgent(BaseAgent):
         ]
 
     async def execute(self, task: str, context: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Execute reconnaissance tasks.
-
-        Tasks can include:
-        - "enumerate_subdomains": Find subdomains of target domain
-        - "scan_ports": Scan for open ports (requires approval)
-        - "fingerprint_services": Identify running services (requires approval)
-        - "detect_technologies": Identify web technologies
-        """
+        """Execute reconnaissance tasks against an authorized target."""
         self.current_task = task
         self.status = AgentStatus.RUNNING
 
-        results = {"task": task, "findings": [], "context_updates": {}}
+        results: Dict[str, Any] = {"task": task, "findings": [], "context_updates": {}}
 
         try:
             if task == "enumerate_subdomains":
-                await self._enumerate_subdomains(context, results)
+                await self._resolve_host(context, results)
             elif task == "scan_ports":
                 await self._scan_ports(context, results)
             elif task == "fingerprint_services":
@@ -67,11 +58,12 @@ class ReconAgent(BaseAgent):
             elif task == "detect_technologies":
                 await self._detect_technologies(context, results)
             else:
-                # General recon - run all applicable tasks
-                await self._enumerate_subdomains(context, results)
-                await self._detect_technologies(context, results)
+                # General recon: passive host resolution plus a port scan when a
+                # scanner tool is available. Never fabricate when it is not.
+                await self._resolve_host(context, results)
+                await self._scan_ports(context, results)
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - reported as task error, never fatal
             results["error"] = str(e)
             self.status = AgentStatus.ERROR
 
@@ -83,157 +75,178 @@ class ReconAgent(BaseAgent):
 
         return results
 
-    async def _enumerate_subdomains(self, context: Dict[str, Any], results: Dict[str, Any]) -> None:
-        """Enumerate subdomains using passive techniques."""
+    async def _resolve_host(self, context: Dict[str, Any], results: Dict[str, Any]) -> None:
+        """Passively confirm a host resolves via DNS (stdlib, no fabrication)."""
         target = context.get("target", "")
         if not target:
+            results["context_updates"]["recon_status"] = "no_target"
             return
 
-        # Simulated subdomain enumeration
-        # In production, this would integrate with tools like:
-        # - theHarvester
-        # - Sublist3r
-        # - Amass (passive mode)
-        # - Certificate transparency logs
+        try:
+            addresses = sorted({info[4][0] for info in socket.getaddrinfo(target, None)})
+        except (socket.gaierror, OSError):
+            results["context_updates"]["recon_status"] = "unresolved"
+            return
 
-        print(f"[ReconAgent] Enumerating subdomains for {target}...")
-
-        # Placeholder: In real implementation, call actual tools
-        discovered = [f"www.{target}", f"mail.{target}", f"api.{target}"]
-
-        for subdomain in discovered:
+        for address in addresses:
             finding = {
-                "type": "subdomain",
-                "title": f"Discovered Subdomain: {subdomain}",
+                "type": "host_resolution",
+                "title": f"Host resolves: {target} -> {address}",
                 "severity": "Informational",
-                "target": subdomain,
-                "description": f"Subdomain {subdomain} discovered during reconnaissance.",
-                "poc": f"nslookup {subdomain}",
-                "reproduction_steps": f"1. Run: nslookup {subdomain}\n2. Verify DNS resolution",
-                "remediation": "Ensure all subdomains are documented and secured.",
+                "target": target,
+                "confidence": "high",
+                "source": "dns:getaddrinfo",
+                "description": f"{target} resolves to {address} via DNS.",
+                "poc": f"nslookup {target}",
+                "reproduction_steps": f"1. Run: nslookup {target}\n2. Confirm it resolves to {address}",
+                "remediation": "Ensure all published DNS records are intended and documented.",
             }
             self.add_finding(finding)
             results["findings"].append(finding)
-            self.discovered_hosts.append(subdomain)
+            if address not in self.discovered_hosts:
+                self.discovered_hosts.append(address)
 
         results["context_updates"]["discovered_hosts"] = self.discovered_hosts
 
     async def _scan_ports(self, context: Dict[str, Any], results: Dict[str, Any]) -> None:
-        """Scan for open ports (requires human approval)."""
+        """Run an approved, real port scan via a registered scanner tool wrapper."""
         target = context.get("target", "")
         if not target:
+            results["context_updates"]["port_scan_status"] = "no_target"
             return
 
-        # Request approval before active scanning
-        approved, _ = await self.request_approval(
-            action_type="port_scan",
-            description=f"Perform TCP port scan on {target} to identify open services",
-            target=target,
-            risk_level=RiskLevel.LOW,  # Non-intrusive SYN scan
-            details={"scan_type": "TCP SYN", "ports": "1-1000", "rate_limit": "100 packets/sec"},
-            timeout_seconds=600,
+        tool_name = (
+            "nmap" if self.has_tool("nmap") else ("masscan" if self.has_tool("masscan") else "")
         )
-
-        if not approved:
-            print("[ReconAgent] Port scan rejected by human operator")
+        if not tool_name:
+            results["context_updates"]["port_scan_status"] = "no_scanner_tool_registered"
             return
 
-        print(f"[ReconAgent] Performing approved port scan on {target}...")
+        # A dry-run only previews the command; nothing executes, so no approval
+        # is warranted. Live scans still require explicit human approval.
+        is_dry_run = getattr(self.tool_registry.get(tool_name), "dry_run", False)
+        if not is_dry_run:
+            approved, _ = await self.request_approval(
+                action_type="port_scan",
+                description=f"Perform a TCP port scan on {target} to identify open services",
+                target=target,
+                risk_level=RiskLevel.MEDIUM,
+                details={"tool": tool_name},
+                timeout_seconds=600,
+            )
+            if not approved:
+                results["context_updates"]["port_scan_status"] = "rejected"
+                return
 
-        # Simulated port scan
-        # In production, integrate with Nmap or masscan
-        open_ports = [
-            {"port": 80, "protocol": "tcp", "service": "http"},
-            {"port": 443, "protocol": "tcp", "service": "https"},
-            {"port": 22, "protocol": "tcp", "service": "ssh"},
-        ]
+        tool_result = await self.run_tool(tool_name, target)
+        if tool_result is None:
+            results["context_updates"]["port_scan_status"] = "tool_unavailable"
+            return
+        if not tool_result.success:
+            results["context_updates"]["port_scan_status"] = "scan_failed"
+            results["context_updates"]["port_scan_error"] = tool_result.stderr[:500]
+            return
 
-        for port_info in open_ports:
+        for parsed in tool_result.findings:
+            if parsed.get("type") != "open_port":
+                continue
+            port = parsed.get("port")
+            protocol = parsed.get("protocol", "tcp")
+            service = parsed.get("service", "unknown")
+            version = parsed.get("version")
             finding = {
                 "type": "open_port",
-                "title": f"Open Port: {port_info['port']}/{port_info['protocol']} ({port_info['service']})",
+                "title": f"Open Port: {port}/{protocol} ({service})",
                 "severity": "Informational",
                 "target": target,
-                "description": f"Port {port_info['port']} is open running {port_info['service']}",
-                "poc": f"nc -zv {target} {port_info['port']}",
-                "reproduction_steps": f"1. Run: nc -zv {target} {port_info['port']}\n2. Observe connection success",
-                "remediation": "Ensure the service is necessary and properly secured.",
+                "port": port,
+                "protocol": protocol,
+                "service": service,
+                "confidence": parsed.get("confidence", "high"),
+                "source": f"tool:{tool_name}",
+                "description": f"Port {port}/{protocol} is open running {service}.",
+                "poc": f"nc -zv {target} {port}",
+                "reproduction_steps": f"1. Run: nc -zv {target} {port}\n2. Observe the successful connection",
+                "remediation": "Confirm the service is required and restrict/patch it as appropriate.",
+                "raw": parsed,
             }
             self.add_finding(finding)
             results["findings"].append(finding)
-            self.discovered_ports.append({**port_info, "host": target})
+            self.discovered_ports.append(
+                {
+                    "port": port,
+                    "protocol": protocol,
+                    "service": service,
+                    "version": version,
+                    "host": target,
+                }
+            )
 
         results["context_updates"]["discovered_ports"] = self.discovered_ports
+        results["context_updates"]["port_scan_status"] = "completed"
 
     async def _fingerprint_services(self, context: Dict[str, Any], results: Dict[str, Any]) -> None:
-        """Fingerprint running services (requires approval)."""
-        ports = context.get("discovered_ports", [])
+        """Fingerprint services from real port data; no fabrication when absent."""
+        ports = context.get("discovered_ports") or self.discovered_ports
         if not ports:
+            results["context_updates"]["fingerprint_status"] = "no_ports_discovered"
             return
 
-        # Request approval
-        approved, _ = await self.request_approval(
-            action_type="service_fingerprinting",
-            description="Perform service version detection on discovered ports",
-            target=context.get("target", ""),
-            risk_level=RiskLevel.LOW,
-            details={"technique": "Banner grabbing, protocol handshake analysis"},
-            timeout_seconds=600,
-        )
-
-        if not approved:
-            return
-
-        print("[ReconAgent] Performing approved service fingerprinting...")
-
-        # Simulated fingerprinting
+        # Version data comes from the scanner's own -sV output captured during the
+        # port scan. Surface only what was actually observed.
+        emitted = 0
         for port_info in ports:
-            version_info = f"{port_info.get('service', 'unknown')} v1.0"
+            version = port_info.get("version")
+            if not version:
+                continue
             finding = {
                 "type": "service_version",
-                "title": f"Service Version Detected: {version_info}",
+                "title": f"Service version: {port_info.get('service', 'unknown')} {version}",
                 "severity": "Informational",
-                "target": port_info.get("host", ""),
-                "description": f"Service version identified on port {port_info['port']}",
-                "poc": f"curl -v http://{port_info.get('host', '')}:{port_info['port']}/",
-                "reproduction_steps": "1. Connect to service\n2. Analyze banner/headers\n3. Identify version",
-                "remediation": "Keep services updated to latest versions.",
+                "target": port_info.get("host", context.get("target", "")),
+                "confidence": "medium",
+                "source": "tool:nmap",
+                "description": f"Version {version} observed on port {port_info.get('port')}.",
+                "poc": f"nmap -sV -p {port_info.get('port')} {port_info.get('host', '')}",
+                "reproduction_steps": "1. Re-run nmap -sV against the port\n2. Compare the reported banner",
+                "remediation": "Keep services patched to a supported version.",
             }
             self.add_finding(finding)
             results["findings"].append(finding)
+            emitted += 1
+
+        results["context_updates"]["fingerprint_status"] = (
+            "completed" if emitted else "no_version_data"
+        )
 
     async def _detect_technologies(self, context: Dict[str, Any], results: Dict[str, Any]) -> None:
-        """Detect web technologies (passive, no approval needed in auto-low mode)."""
-        hosts = context.get("discovered_hosts", [])
+        """Detect web technologies via a registered tool; no fabrication otherwise."""
         target = context.get("target", "")
+        if not self.has_tool("browser") and not self.has_tool("whatweb"):
+            results["context_updates"]["technology_status"] = "no_fingerprint_tool_registered"
+            return
 
-        if not hosts and target:
-            hosts = [target]
+        tool_name = "browser" if self.has_tool("browser") else "whatweb"
+        tool_result = await self.run_tool(tool_name, target)
+        if tool_result is None or not tool_result.success:
+            results["context_updates"]["technology_status"] = "detection_unavailable"
+            return
 
-        print("[ReconAgent] Detecting web technologies...")
-
-        # Simulated technology detection
-        # In production, integrate with Wappalyzer or WhatWeb
-        technologies = [
-            {"name": "Nginx", "category": "Web Server", "version": "1.18.0"},
-            {"name": "React", "category": "JavaScript Framework", "version": "18.2.0"},
-            {"name": "Node.js", "category": "Runtime", "version": "18.x"},
-        ]
-
-        for host in hosts:
-            for tech in technologies:
-                finding = {
-                    "type": "technology",
-                    "title": f"Technology Detected: {tech['name']} {tech.get('version', '')}",
-                    "severity": "Informational",
-                    "target": host,
-                    "description": f"{tech['category']} detected: {tech['name']}",
-                    "poc": f"Check HTTP headers or JS files on http://{host}",
-                    "reproduction_steps": f"1. Visit http://{host}\n2. Inspect headers/source\n3. Identify {tech['name']}",
-                    "remediation": "Ensure all technologies are patched and up to date.",
-                }
-                self.add_finding(finding)
-                results["findings"].append(finding)
-                self.technologies.append({**tech, "host": host})
+        for parsed in tool_result.findings:
+            finding = {
+                "type": "technology",
+                "title": parsed.get("title", f"Technology detected on {target}"),
+                "severity": "Informational",
+                "target": target,
+                "confidence": parsed.get("confidence", "medium"),
+                "source": f"tool:{tool_name}",
+                "description": parsed.get("summary", "Technology observed during fingerprinting."),
+                "remediation": "Ensure all detected technologies are patched and supported.",
+                "raw": parsed,
+            }
+            self.add_finding(finding)
+            results["findings"].append(finding)
+            self.technologies.append(parsed)
 
         results["context_updates"]["technologies"] = self.technologies
+        results["context_updates"]["technology_status"] = "completed"

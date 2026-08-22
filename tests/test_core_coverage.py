@@ -248,47 +248,135 @@ def test_base_agent_approval_and_model_errors():
     run(scenario())
 
 
-def test_recon_and_vulnerability_agents_with_mocked_approvals():
+class _FakeToolResult:
+    def __init__(self, findings, success=True, stderr=""):
+        self.findings = findings
+        self.success = success
+        self.stderr = stderr
+
+
+class _FakeTool:
+    """Minimal stand-in exposing the async tool contract agents rely on."""
+
+    def __init__(self, name, findings, success=True):
+        self.name = name
+        self.approval_gateway = None
+        self._result = _FakeToolResult(findings, success=success)
+
+    async def execute_async(self, target, options=None, timeout=300):
+        return self._result
+
+
+def test_recon_agent_uses_registered_tools_not_fabrication():
     async def scenario():
+        # No scanner registered -> honest status, zero findings (no fabrication).
         recon = ReconAgent()
-        result = await recon.execute("enumerate_subdomains", {"target": "example.com"})
-        assert len(result["findings"]) == 3
-        tech = await recon.execute("detect_technologies", {"target": "example.com"})
-        assert len(tech["findings"]) == 3
 
         async def approve(*args, **kwargs):
             return True, {"operator": "test"}
 
         recon.request_approval = approve
-        ports = await recon.execute("scan_ports", {"target": "example.com"})
-        assert len(ports["findings"]) == 3
-        fingerprint = await recon.execute(
-            "fingerprint_services",
-            {
-                "target": "example.com",
-                "discovered_ports": ports["context_updates"]["discovered_ports"],
-            },
-        )
-        assert len(fingerprint["findings"]) == 3
-        assert (await recon.execute("other", {}))["findings"] == []
+        empty = await recon.execute("scan_ports", {"target": "example.com"})
+        assert empty["findings"] == []
+        assert empty["context_updates"]["port_scan_status"] == "no_scanner_tool_registered"
 
-        scanner = VulnerabilityScannerAgent()
-        scanner.request_approval = approve
-        sql = await scanner.execute("scan_sql_injection", {"target": "example.com"})
-        assert sql["findings"][0]["type"] == "sql_injection"
-        xss = await scanner.execute("scan_xss", {"discovered_urls": ["https://example.com/login"]})
-        assert xss["findings"][0]["type"] == "xss"
-        ssrf = await scanner.execute("scan_ssrf", {"target": "example.com"})
-        assert ssrf["findings"][0]["type"] == "ssrf"
-        auth = await scanner.execute("scan_auth_bypass", {"target": "example.com"})
-        assert auth["findings"] == []
+        # With a registered nmap wrapper, findings come from the tool output.
+        recon_wired = ReconAgent(
+            tool_registry={
+                "nmap": _FakeTool(
+                    "nmap",
+                    [
+                        {
+                            "type": "open_port",
+                            "port": 443,
+                            "protocol": "tcp",
+                            "service": "https",
+                            "version": "nginx 1.25",
+                        }
+                    ],
+                )
+            }
+        )
+        recon_wired.request_approval = approve
+        ports = await recon_wired.execute("scan_ports", {"target": "example.com"})
+        assert ports["context_updates"]["port_scan_status"] == "completed"
+        assert ports["findings"][0]["source"] == "tool:nmap"
+        assert ports["findings"][0]["port"] == 443
+
+        # Fingerprinting surfaces only versions actually observed by the scanner.
+        fingerprint = await recon_wired.execute(
+            "fingerprint_services",
+            {"discovered_ports": ports["context_updates"]["discovered_ports"]},
+        )
+        assert fingerprint["context_updates"]["fingerprint_status"] == "completed"
+        assert fingerprint["findings"][0]["type"] == "service_version"
+
+        # A port with no observed version yields no fabricated version data.
+        bare = await recon_wired.execute(
+            "fingerprint_services",
+            {"discovered_ports": [{"port": 22, "service": "ssh", "host": "example.com"}]},
+        )
+        assert bare["context_updates"]["fingerprint_status"] == "no_version_data"
+
+        # localhost always resolves without network access.
+        resolved = await recon_wired.execute("enumerate_subdomains", {"target": "localhost"})
+        assert all(f["type"] == "host_resolution" for f in resolved["findings"])
+
+        # Rejected scan yields no findings.
+        recon_reject = ReconAgent(tool_registry={"nmap": _FakeTool("nmap", [])})
 
         async def reject(*args, **kwargs):
             return False, None
 
-        scanner.request_approval = reject
-        rejected = await scanner.execute("unknown", {"target": "example.com"})
+        recon_reject.request_approval = reject
+        rejected = await recon_reject.execute("scan_ports", {"target": "example.com"})
         assert rejected["findings"] == []
+        assert rejected["context_updates"]["port_scan_status"] == "rejected"
+
+    run(scenario())
+
+
+def test_vuln_agent_validates_with_tool_or_advises_with_model():
+    async def scenario():
+        # No tool and no model -> honest status, no fabricated vulns.
+        scanner = VulnerabilityScannerAgent()
+        sql = await scanner.execute("scan_sql_injection", {"target": "example.com"})
+        assert sql["findings"] == []
+        assert sql["context_updates"]["sql_injection_status"] == "no_tool_or_model"
+
+        # Registered sqlmap wrapper -> confirmed, tool-sourced finding.
+        wired = VulnerabilityScannerAgent(
+            tool_registry={"sqlmap": _FakeTool("sqlmap", [{"parameter": "id"}])}
+        )
+        confirmed = await wired.execute("scan_sql_injection", {"target": "example.com"})
+        assert confirmed["findings"][0]["type"] == "sql_injection"
+        assert confirmed["findings"][0]["source"] == "tool:sqlmap"
+        assert confirmed["findings"][0]["validated"] is True
+        assert confirmed["context_updates"]["sql_injection_status"] == "confirmed"
+
+        # Model available, no tool -> advisory hypotheses tagged and unvalidated.
+        class _Model:
+            async def chat(self, messages, **kwargs):
+                from networkforgeai.models.base_adapter import ModelResponse
+
+                return ModelResponse(
+                    content='[{"title": "Possible XSS", "type": "xss", "severity": "High", '
+                    '"confidence": 0.4, "rationale": "reflected param"}]',
+                    model="test",
+                    usage={},
+                    finish_reason="stop",
+                )
+
+        advised = VulnerabilityScannerAgent(model_adapter=_Model())
+        xss = await advised.execute("scan_xss", {"discovered_urls": ["https://example.com/s"]})
+        assert xss["findings"][0]["source"] == "llm_hypothesis"
+        assert xss["findings"][0]["validated"] is False
+        assert xss["context_updates"]["xss_status"] == "hypotheses_only"
+
+        # Unknown task with no target still fabricates nothing.
+        none = await advised.execute("scan_ssrf", {})
+        assert none["findings"] == []
+        assert none["context_updates"]["ssrf_status"] == "no_target"
 
     run(scenario())
 
