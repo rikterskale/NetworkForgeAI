@@ -67,6 +67,27 @@ def test_single_tool_dry_run(capsys):
     assert payload["success"] is True
 
 
+def test_tool_preflight_dry_run(capsys):
+    assert (
+        main(
+            [
+                "--target",
+                "example.com",
+                "--scope",
+                "example.com",
+                "--tool",
+                "nmap",
+                "--dry-run",
+                "--preflight",
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert payload["checks"][0]["tool"] == "nmap"
+
+
 def test_scan_uses_environment_runtime_defaults(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("TARGET_SCOPE", "example.com")
     monkeypatch.setenv("APPROVAL_MODE", "moderate")
@@ -83,6 +104,22 @@ def test_scan_uses_environment_runtime_defaults(monkeypatch, tmp_path, capsys):
     assert state["config"]["approval_mode"] == "moderate"
     assert state["config"]["report_formats"] == ["json"]
     assert not (states[0].parent / "report.md").exists()
+
+
+def test_runtime_settings_resolve_ci_logging_and_session(monkeypatch):
+    from networkforgeai.config import Settings
+
+    monkeypatch.setenv("TARGET_SCOPE", "example.com")
+    monkeypatch.setenv("CI_MODE", "true")
+    monkeypatch.setenv("LOG_LEVEL", "DEBUG")
+    monkeypatch.setenv("LOG_FORMAT", "json")
+    monkeypatch.setenv("SESSION_TIMEOUT_MINUTES", "125")
+    configured = Settings()
+    assert configured.ci_mode is True
+    assert configured.log_level == "DEBUG"
+    assert configured.log_format == "json"
+    assert configured.resolve_timeout_hours() == 3
+    assert configured.validate_runtime() is True
 
 
 def test_orchestrated_dry_run_produces_only_real_findings(tmp_path, capsys):

@@ -13,7 +13,7 @@ from typing import Any
 
 from ..reporting.models import Finding, FindingStatus
 from ..sandbox.runner import SandboxRunner
-from .approval_gateway import ApprovalGateway, ApprovalStatus, RiskLevel
+from .approval_gateway import ApprovalGateway, ApprovalStatus, RiskLevel, action_requires_approval
 from .scope import ScopePolicy
 
 __all__ = ["ValidationOutcome", "ExploitValidationRunner"]
@@ -66,6 +66,7 @@ class ExploitValidationRunner:
         poc_commands: list[list[str]],
         *,
         requester_id: str = "validation_runner",
+        justification: str | None = None,
     ) -> ValidationOutcome:
         """Validate a single finding with the given PoC command vectors."""
         if not poc_commands:
@@ -83,13 +84,28 @@ class ExploitValidationRunner:
                 reason=f"target outside scope policy: {finding.target}",
             )
 
+        if not action_requires_approval(RiskLevel.HIGH, "exploitation"):
+            return ValidationOutcome(
+                finding_id=finding.finding_id,
+                executed=False,
+                approved=False,
+                reason="validation policy did not require approval",
+            )
+        details: dict[str, Any] = {
+            "finding_id": finding.finding_id,
+            "commands": len(poc_commands),
+            "category": "exploitation",
+            "destructive": False,
+        }
+        if justification:
+            details["justification"] = justification
         request = await self.gateway.request_approval(
             agent_id=requester_id,
             action_type="exploit_validation",
             description=f"Validate {finding.type} on {finding.target}",
             target=finding.target,
             risk_level=RiskLevel.HIGH,
-            details={"finding_id": finding.finding_id, "commands": len(poc_commands)},
+            details=details,
             timeout_seconds=self.timeout_seconds,
         )
         decision = await self.gateway.wait_for_approval(request.id, poll_interval=0.05)

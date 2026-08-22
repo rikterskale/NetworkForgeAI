@@ -19,3 +19,13 @@ def test_sandbox_round_trip_isolated_fixture():
     result = SandboxRunner().run(["sh", "-c", "printf sandbox-ok"], timeout=20)
     assert result.returncode == 0
     assert result.stdout == "sandbox-ok"
+
+
+@pytest.mark.integration
+def test_scanner_binary_is_available_inside_fixture_container():
+    """Exercise the packaged scanner binary without scanning a target."""
+    if not os.getenv("NETWORKFORGE_SANDBOX_IMAGE") or shutil.which("docker") is None:
+        pytest.skip("requires Docker and NETWORKFORGE_SANDBOX_IMAGE")
+    result = SandboxRunner().run(["nmap", "--version"], timeout=20)
+    assert result.returncode == 0
+    assert "Nmap version" in result.stdout

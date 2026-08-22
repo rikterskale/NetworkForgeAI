@@ -25,6 +25,7 @@ python -m networkforgeai.cli --list-tools
 python -m networkforgeai.cli --list-reports --output-dir ./reports
 python -m networkforgeai.cli --show-report scan-id/report.md --output-dir ./reports
 python -m networkforgeai.cli --validate-config
+python -m networkforgeai.cli --target app.example.test --scope app.example.test --tool nmap --preflight
 ```
 
 `--show-report` rejects paths that escape `--output-dir`, such as `../secret.txt`.
@@ -43,6 +44,7 @@ python -m networkforgeai.cli --validate-config
 | `--output-dir PATH` | Scan/report directory; default is `./scans` |
 | `--orchestrate` | Execute the basic agent workflow after startup |
 | `--provider NAME` | Select `openai`, `anthropic`, `google`, `local`, or `litellm` |
+| `--preflight` | Check scope, command construction, executable/Docker, and sandbox-image prerequisites without scanning |
 
 Every scan operation needs both `--target` and at least one `--scope`. The target
 must match the scope after exclusions are applied.

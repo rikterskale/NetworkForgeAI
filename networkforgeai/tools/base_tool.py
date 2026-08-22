@@ -8,7 +8,12 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from ..core.approval_gateway import ApprovalGateway, ApprovalStatus, RiskLevel
+from ..core.approval_gateway import (
+    ApprovalGateway,
+    ApprovalStatus,
+    RiskLevel,
+    action_requires_approval,
+)
 from ..core.scope import ScopePolicy
 from ..observability import command_digest, redact_text, safe_command_string
 from ..sandbox.runner import SandboxRunner
@@ -94,6 +99,7 @@ class BaseTool(ABC):
     category: ToolCategory = ToolCategory.REPORTING
     risk_level: ToolRiskLevel = ToolRiskLevel.LOW
     requires_approval: bool = False
+    passive: bool = False
 
     def __init__(
         self,
@@ -147,10 +153,12 @@ class BaseTool(ABC):
         return self.scope_policy is not None
 
     def _approval_required(self) -> bool:
-        return self.requires_approval or self.risk_level in {
-            ToolRiskLevel.HIGH,
-            ToolRiskLevel.CRITICAL,
-        }
+        return self.requires_approval or action_requires_approval(
+            self.risk_level.value,
+            self.category.value,
+            passive=self.passive,
+            dry_run=self.dry_run,
+        )
 
     def execute(
         self, target: str, options: Optional[Dict[str, Any]] = None, timeout: int = 300
@@ -391,6 +399,7 @@ class BaseTool(ABC):
             "category": self.category.value,
             "risk_level": self.risk_level.value,
             "requires_approval": self.requires_approval,
+            "passive": self.passive,
             "sandbox_mode": self.sandbox_mode,
             "dry_run": self.dry_run,
         }

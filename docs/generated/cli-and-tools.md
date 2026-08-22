@@ -10,9 +10,11 @@ usage: networkforgeai [-h] [--target TARGET] [--scope SCOPE]
                       [--tool TOOL] [--dry-run] [--host-execution]
                       [--output-dir OUTPUT_DIR] [--orchestrate]
                       [--profile {recon,appsec,full}] [--exploit-plan PATH]
+                      [--justification JUSTIFICATION]
                       [--provider {openai,anthropic,google,local,litellm}]
                       [--list-tools] [--list-reports] [--show-report PATH]
-                      [--validate-config] [--diagnose-config] [--version]
+                      [--validate-config] [--diagnose-config] [--preflight]
+                      [--version]
 
 NetworkForgeAI authorized security validation
 
@@ -36,6 +38,9 @@ options:
                         profile: a list of {"target","module","payload","set_o
                         ptions","justification"} entries. Every entry still
                         requires explicit human approval before execution.
+  --justification JUSTIFICATION
+                        Written justification required by configured policy
+                        for critical actions
   --provider {openai,anthropic,google,local,litellm}
                         Optional LLM provider configured through environment
                         variables
@@ -45,6 +50,8 @@ options:
   --validate-config     Validate environment configuration and safety defaults
   --diagnose-config     Print structured, secret-safe configuration
                         diagnostics
+  --preflight           Check selected tool, sandbox, scope, and output
+                        prerequisites without scanning
   --version             show program's version number and exit
 ```
 

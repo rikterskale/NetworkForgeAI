@@ -154,6 +154,7 @@ class ApprovalGateway:
         audit_enabled: bool = True,
         block_destructive_actions: bool = False,
         require_justification_for_exploitation: bool = False,
+        ci_mode: bool = False,
     ):
         self.mode = mode
         self.requests: Dict[str, ApprovalRequest] = {}
@@ -163,6 +164,7 @@ class ApprovalGateway:
         self.audit_enabled = audit_enabled
         self.block_destructive_actions = block_destructive_actions
         self.require_justification_for_exploitation = require_justification_for_exploitation
+        self.ci_mode = ci_mode
         self._emergency_stop = False
         self._emergency_stop_reason: Optional[str] = None
 

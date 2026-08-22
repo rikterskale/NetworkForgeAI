@@ -125,6 +125,20 @@ class Settings(BaseSettings):
         """Resolve a one-run approval mode over the configured mode."""
         return cli_mode or self.approval_mode.value
 
+    def resolve_timeout_hours(self) -> int:
+        """Convert the configured operator session limit to scan hours."""
+        return max(1, (self.session_timeout_minutes + 59) // 60)
+
+    def validate_runtime(self) -> bool:
+        """Validate settings that affect an actual scan process."""
+        self.validate_security_config()
+        output = Path(self.report_output_dir).expanduser()
+        if output.exists() and not output.is_dir():
+            raise ValueError(f"REPORT_OUTPUT_DIR is not a directory: {output}")
+        if self.ci_mode and self.approval_mode is ApprovalMode.LENIENT:
+            raise ValueError("CI_MODE cannot use lenient approval")
+        return True
+
     @property
     def is_strict_mode(self) -> bool:
         """Check if running in strict approval mode."""

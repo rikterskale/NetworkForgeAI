@@ -12,6 +12,7 @@ from networkforgeai.core.approval_gateway import (
 )
 from networkforgeai.core.scope import ScopePolicy
 from networkforgeai.tools.base_tool import BaseTool, ToolCategory, ToolRiskLevel
+from networkforgeai.tools.nmap_tool import NmapTool
 
 
 class HighRiskTool(BaseTool):
@@ -52,6 +53,13 @@ def test_high_risk_tool_fails_closed_without_approval_gateway():
     )
 
     with pytest.raises(PermissionError, match="approval gateway"):
+        tool.execute("example.com")
+
+
+def test_active_medium_tool_fails_closed_without_approval_gateway():
+    tool = NmapTool(dry_run=False, sandbox_mode=False)
+    tool.scope_policy = ScopePolicy(["example.com"])
+    with pytest.raises(PermissionError):
         tool.execute("example.com")
 
 

@@ -77,3 +77,25 @@ async def test_local_fixture_runs_through_agent_orchestrator_and_reports(tmp_pat
     state = json.loads((scan_dir / "scan_state.json").read_text())
     assert state["config"]["scope"] == [target]
     assert state["config"]["report_formats"] == ["markdown", "json", "csv", "sarif", "pdf"]
+
+
+@pytest.mark.asyncio
+async def test_local_fixture_recovers_from_persisted_running_state(tmp_path):
+    """A process restart can restore state and finish the same local scan."""
+    target = "fixture.local"
+    policy = ScopePolicy([target])
+    first = ScanOrchestrator(
+        ScanConfig(target=target, scope=[target], save_dir=str(tmp_path), report_formats=["json"])
+    )
+    await first.start()
+    scan_id = first.scan_id
+
+    restored = await ScanOrchestrator.from_state(scan_id, str(tmp_path))
+    scanner = FixtureScanner(scope_policy=policy)
+    restored.register_agent(FixtureAgent(tool_registry={scanner.name: scanner}))
+    await restored.execute_scan()
+
+    assert restored.status.value == "completed"
+    state = json.loads((tmp_path / scan_id / "scan_state.json").read_text())
+    assert state["status"] == "completed"
+    assert state["finding_count"] == 1

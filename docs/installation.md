@@ -102,6 +102,18 @@ also need the optional provider SDKs, which supply MyPy type stubs:
 python -m pip install '.[runtime,dev,llm]'
 ```
 
+For a reproducible contributor environment, use the committed resolved
+environment after creating the virtual environment:
+
+```bash
+python -m pip install -r requirements.lock
+python -m pip install -e . --no-deps
+```
+
+`pyproject.toml` remains authoritative for dependency selection; the lock file
+is a reviewed version snapshot and must be regenerated when dependencies are
+updated.
+
 On Windows PowerShell, activate with:
 
 ```powershell

@@ -10,13 +10,15 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from ..observability import bind_log_context, increment_metric
 from ..reporting import to_csv, to_html, to_json, to_pdf, to_sarif
+from ..tools.base_tool import BaseTool
+from ..tools.preflight import preflight_tool
 from .approval_gateway import ApprovalGateway, _as_utc
 from .base_agent import AgentState, AgentStatus, BaseAgent
 from .knowledge_base import KnowledgeBase
@@ -61,6 +63,9 @@ class ScanConfig:
     audit_all_approvals: bool = True
     block_destructive_actions: bool = True
     require_justification_for_exploitation: bool = True
+    ci_mode: bool = False
+    log_level: str = "INFO"
+    log_format: str = "text"
 
 
 @dataclass
@@ -106,6 +111,7 @@ class ScanOrchestrator:
             audit_enabled=config.audit_all_approvals,
             block_destructive_actions=config.block_destructive_actions,
             require_justification_for_exploitation=config.require_justification_for_exploitation,
+            ci_mode=config.ci_mode,
         )
         self.shared_context: Dict[str, Any] = {
             "target": config.target,
@@ -116,6 +122,7 @@ class ScanOrchestrator:
             "vulnerabilities": [],
             "credentials": [],
             "attack_paths": [],
+            "preflight": [],
         }
         self.findings: List[Dict[str, Any]] = []
         self.approval_log: List[Dict[str, Any]] = []
@@ -125,6 +132,7 @@ class ScanOrchestrator:
         self._stop_requested = False
         self._phase_errors: list[dict[str, str]] = []
         self._phase_semaphore = asyncio.Semaphore(max(1, config.max_agents))
+        self._deadline: Optional[datetime] = None
 
     def register_agent(self, agent: BaseAgent) -> None:
         """Register an agent with the orchestrator."""
@@ -155,8 +163,21 @@ class ScanOrchestrator:
         increment_metric("networkforgeai_scans_started_total")
         bind_log_context(scan_id=self.scan_id)
         self.started_at = datetime.now(timezone.utc)
+        self._deadline = self.started_at + timedelta(hours=self.config.timeout_hours)
         for agent in self.agents.values():
             await self.message_bus.register(agent.id)
+
+        preflight_results: list[dict[str, Any]] = []
+        seen_tools: set[int] = set()
+        for agent in self.agents.values():
+            for candidate in agent.tool_registry.values():
+                if isinstance(candidate, BaseTool) and id(candidate) not in seen_tools:
+                    seen_tools.add(id(candidate))
+                    preflight_results.append(preflight_tool(candidate, self.config.target))
+        self.shared_context["preflight"] = preflight_results
+        failed = [item for item in preflight_results if not item.get("ok", False)]
+        if failed and self.config.ci_mode:
+            raise RuntimeError("scan preflight failed in CI mode")
 
         # Create save directory
         self.save_dir.mkdir(parents=True, exist_ok=True)
@@ -278,6 +299,8 @@ class ScanOrchestrator:
 
     async def _execute_phase(self, agents: list[BaseAgent], phase_name: str) -> None:
         """Execute a phase with multiple agents in parallel."""
+        if self._deadline and datetime.now(timezone.utc) >= self._deadline:
+            raise TimeoutError(f"scan session timeout reached before phase {phase_name}")
         bind_log_context(scan_id=self.scan_id)
         tasks = []
         for agent in agents:
@@ -398,6 +421,10 @@ class ScanOrchestrator:
                 "audit_all_approvals": self.config.audit_all_approvals,
                 "block_destructive_actions": self.config.block_destructive_actions,
                 "require_justification_for_exploitation": self.config.require_justification_for_exploitation,
+                "timeout_hours": self.config.timeout_hours,
+                "ci_mode": self.config.ci_mode,
+                "log_level": self.config.log_level,
+                "log_format": self.config.log_format,
             },
             "shared_context": self.shared_context,
             "agent_count": len(self.agents),
@@ -547,10 +574,15 @@ class ScanOrchestrator:
             require_justification_for_exploitation=state["config"].get(
                 "require_justification_for_exploitation", True
             ),
+            timeout_hours=state["config"].get("timeout_hours", 24),
+            ci_mode=state["config"].get("ci_mode", False),
+            log_level=state["config"].get("log_level", "INFO"),
+            log_format=state["config"].get("log_format", "text"),
         )
 
         orchestrator = cls(config)
         orchestrator.scan_id = scan_id
+        orchestrator.save_dir = save_dir
         orchestrator.status = ScanStatus(state["status"])
         orchestrator.started_at = (
             _as_utc(datetime.fromisoformat(state["started_at"])) if state["started_at"] else None

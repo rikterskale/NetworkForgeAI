@@ -24,6 +24,7 @@ from .core.approval_gateway import ApprovalStatus, RiskLevel, action_requires_ap
 from .core.orchestrator import ScanConfig, ScanOrchestrator
 from .core.scope import ScopePolicy
 from .tools import get_available_tools, get_tool_by_name
+from .tools.preflight import preflight_tool
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -111,6 +112,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print structured, secret-safe configuration diagnostics",
     )
+    parser.add_argument(
+        "--preflight",
+        action="store_true",
+        help="Check selected tool, sandbox, scope, and output prerequisites without scanning",
+    )
     parser.add_argument("--version", action="version", version=f"NetworkForgeAI {__version__}")
     return parser
 
@@ -132,6 +138,12 @@ def main(argv: list[str] | None = None) -> int:
         if args.validate_config or args.diagnose_config:
             raise SystemExit("Configuration commands require the runtime dependencies") from exc
         runtime_settings = None
+    if runtime_settings is not None:
+        configure_logging(
+            runtime_settings.log_level,
+            log_format=runtime_settings.log_format,
+            force=True,
+        )
     output_dir = (
         runtime_settings.resolve_output_dir(args.output_dir)
         if runtime_settings is not None
@@ -149,7 +161,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.validate_config:
         assert runtime_settings is not None
-        runtime_settings.validate_security_config()
+        runtime_settings.validate_runtime()
         print("Configuration is valid for authorized scanning.")
         return 0
     if args.diagnose_config:
@@ -165,6 +177,8 @@ def main(argv: list[str] | None = None) -> int:
         except Exception as exc:
             print(json.dumps({"ok": False, "checks": [], "error": str(exc)}, indent=2))
             return 2
+    if args.preflight and not args.target:
+        raise SystemExit("--preflight requires --target and --scope")
     scope = (
         runtime_settings.resolve_scope(args.scope)
         if runtime_settings is not None
@@ -175,6 +189,20 @@ def main(argv: list[str] | None = None) -> int:
     policy = ScopePolicy(scope, args.exclude)
     if not policy.contains(args.target):
         raise SystemExit(f"Target is outside the explicitly supplied scope: {args.target}")
+
+    if args.preflight:
+        names = [args.tool] if args.tool else list(get_available_tools())
+        checks = []
+        for name in names:
+            tool = get_tool_by_name(
+                name,
+                dry_run=args.dry_run,
+                sandbox_mode=not args.host_execution,
+                scope_policy=policy,
+            )
+            checks.append(preflight_tool(tool, args.target))
+        print(json.dumps({"ok": all(item["ok"] for item in checks), "checks": checks}, indent=2))
+        return 0 if all(item["ok"] for item in checks) else 2
 
     if args.tool:
         gateway = None
@@ -203,7 +231,12 @@ def main(argv: list[str] | None = None) -> int:
                     if runtime_settings
                     else _env_bool("REQUIRE_JUSTIFICATION_FOR_EXPLOITATION", True)
                 ),
+                ci_mode=runtime_settings.ci_mode
+                if runtime_settings is not None
+                else _env_bool("CI_MODE", False),
             )
+            if runtime_settings is not None and runtime_settings.ci_mode:
+                gateway.mode = "strict"
         tool = get_tool_by_name(
             args.tool,
             dry_run=args.dry_run,
@@ -250,6 +283,20 @@ def main(argv: list[str] | None = None) -> int:
             if runtime_settings
             else _env_bool("REQUIRE_JUSTIFICATION_FOR_EXPLOITATION", True)
         ),
+        timeout_hours=(
+            runtime_settings.resolve_timeout_hours()
+            if runtime_settings is not None
+            else max(1, (int(os.getenv("SESSION_TIMEOUT_MINUTES", "60")) + 59) // 60)
+        ),
+        ci_mode=runtime_settings.ci_mode
+        if runtime_settings is not None
+        else _env_bool("CI_MODE", False),
+        log_level=runtime_settings.log_level
+        if runtime_settings is not None
+        else os.getenv("LOG_LEVEL", "INFO"),
+        log_format=runtime_settings.log_format
+        if runtime_settings is not None
+        else os.getenv("LOG_FORMAT", "text"),
     )
     orchestrator = ScanOrchestrator(config)
     model_adapter = None
@@ -354,10 +401,16 @@ async def _execute_single_tool(
     """Run a single tool with the same approval policy as agent execution."""
     if tool.dry_run:
         return tool.execute(target)
+    preflight = preflight_tool(tool, target)
+    if not preflight["ok"]:
+        raise RuntimeError(f"Tool preflight failed: {json.dumps(preflight, sort_keys=True)}")
     if gateway is not None:
         from .interface.cli_ui import ApprovalPrompt
 
-        gateway.register_callback("cli_prompt", ApprovalPrompt(gateway))
+        gateway.register_callback(
+            "cli_prompt",
+            ApprovalPrompt(gateway, interactive=not getattr(gateway, "ci_mode", False)),
+        )
     requires_approval = action_requires_approval(
         tool.risk_level,
         tool.category.value,
@@ -388,7 +441,10 @@ async def _execute_single_tool(
 async def _run(orchestrator: ScanOrchestrator, execute: bool) -> None:
     from .interface.cli_ui import ApprovalPrompt, StatusDisplay
 
-    prompt = ApprovalPrompt(orchestrator.approval_gateway)
+    prompt = ApprovalPrompt(
+        orchestrator.approval_gateway,
+        interactive=not orchestrator.config.ci_mode,
+    )
     orchestrator.approval_gateway.register_callback("cli_prompt", prompt)
     display = StatusDisplay()
     await orchestrator.start()

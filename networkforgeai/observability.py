@@ -143,7 +143,12 @@ def command_digest(command: Sequence[str]) -> str:
     return hashlib.sha256(canonical).hexdigest()
 
 
-def configure_logging(level: str | None = None, *, force: bool = False) -> None:
+def configure_logging(
+    level: str | None = None,
+    *,
+    log_format: str | None = None,
+    force: bool = False,
+) -> None:
     """Configure root logging once, honoring ``level`` or ``$LOG_LEVEL``.
 
     Idempotent: repeated calls are no-ops unless ``force`` is set. The level is
@@ -155,6 +160,9 @@ def configure_logging(level: str | None = None, *, force: bool = False) -> None:
         return
 
     resolved = (level or os.getenv("LOG_LEVEL") or "INFO").upper()
+    resolved_format = (log_format or os.getenv("LOG_FORMAT") or "text").lower()
+    if resolved_format not in {"text", "json"}:
+        resolved_format = "text"
     numeric = getattr(logging, resolved, logging.INFO)
     if not isinstance(numeric, int):
         numeric = logging.INFO
@@ -165,8 +173,10 @@ def configure_logging(level: str | None = None, *, force: bool = False) -> None:
     context_filter = _ContextFilter()
     for handler in root.handlers:
         handler.addFilter(context_filter)
-        if (os.getenv("LOG_FORMAT") or "text").lower() == "json":
+        if resolved_format == "json":
             handler.setFormatter(_JsonFormatter())
+        else:
+            handler.setFormatter(logging.Formatter(_DEFAULT_FORMAT))
     _CONFIGURED = True
 
 
