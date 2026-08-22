@@ -164,17 +164,18 @@ def discover_attack_paths(
                 key = tuple(path)
                 if key not in seen:
                     seen.add(key)
-                    stages = [node.rsplit("::", 1)[-1] for node in path]
+                    path_stages = [node.rsplit("::", 1)[-1] for node in path]
+                    # by_host already stores integer severity ranks per stage, so
+                    # use them directly (the previous _SEVERITY_RANK re-lookup on an
+                    # int key always yielded 0, dropping severity from the score).
                     score = len(path) * 2 + max(
                         (
-                            _SEVERITY_RANK.get(
-                                by_host.get(node.split("::")[0], {}).get(stage, "informational"), 0
-                            )
-                            for node, stage in zip(path, stages)
+                            by_host.get(node.split("::")[0], {}).get(str(stage), 0)
+                            for node, stage in zip(path, path_stages)
                         ),
                         default=0,
                     )
-                    paths.append({"nodes": path, "score": score, "stages": stages})
+                    paths.append({"nodes": path, "score": score, "stages": path_stages})
 
     paths.sort(key=lambda p: (-p["score"], p["nodes"]))
     return {

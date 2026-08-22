@@ -240,10 +240,6 @@ def _run_coroutine(coroutine: Any) -> Any:
     raise HTTPException(status_code=500, detail="Dashboard cannot nest event loops")
 
 
-def _run_oroutine(coroutine: Any) -> Any:
-    return _run_coroutine(coroutine)
-
-
 def _safe_child(root: Path, relative_path: str) -> Path:
     root = root.resolve()
     candidate = (root / relative_path).resolve()

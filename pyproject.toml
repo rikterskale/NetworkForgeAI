@@ -56,9 +56,12 @@ ignore = ["E501"]
 exclude_dirs = ["tests", ".venv", ".python-versions"]
 
 [tool.coverage.run]
+# Only the concrete third-party LLM SDK adapters are excluded: they wrap the
+# openai / anthropic / google-genai network clients and are exercised by the
+# live_provider-marked integration tests (which require real credentials) and
+# the clean package-install smoke test in CI, not by the unit suite. All of the
+# framework's own code — including cli.py and the dashboard — is measured.
 omit = [
-    "networkforgeai/cli.py",
-    "networkforgeai/interface/dashboard.py",
     "networkforgeai/models/anthropic_adapter.py",
     "networkforgeai/models/google_adapter.py",
     "networkforgeai/models/openai_adapter.py",

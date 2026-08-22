@@ -10,8 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from ..reporting.models import prepare_findings
-from .validation import FindingStatus
+from ..reporting.models import FindingStatus, prepare_findings
 
 __all__ = ["RetestAction", "build_retest_plan"]
 
@@ -71,7 +70,7 @@ def build_retest_plan(
     """
     allowed = statuses or set(_STATUSES)
     plan: list[RetestAction] = []
-    for row in prepare_findings(findings):  # type: ignore[arg-type]
+    for row in prepare_findings(findings):
         status = str(row.get("status") or FindingStatus.SUSPECTED.value)
         if status not in allowed:
             continue

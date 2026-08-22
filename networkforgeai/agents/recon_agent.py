@@ -83,7 +83,7 @@ class ReconAgent(BaseAgent):
             return
 
         try:
-            addresses = sorted({info[4][0] for info in socket.getaddrinfo(target, None)})
+            addresses = sorted({str(info[4][0]) for info in socket.getaddrinfo(target, None)})
         except (socket.gaierror, OSError):
             results["context_updates"]["recon_status"] = "unresolved"
             return

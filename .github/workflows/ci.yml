@@ -31,7 +31,7 @@ jobs:
       - run: python -m pip check
       - run: ruff check networkforgeai tests tools
       - run: ruff format --check networkforgeai tests tools
-      - run: python -m mypy --strict networkforgeai/__init__.py networkforgeai/core/scope.py networkforgeai/core/approval_gateway.py networkforgeai/reporting/models.py networkforgeai/reporting/generators.py networkforgeai/integrations/webhooks.py networkforgeai/sandbox/runner.py
+      - run: python -m mypy --strict networkforgeai
       - run: bandit -q -r networkforgeai -ll
       - run: pip-audit
 
