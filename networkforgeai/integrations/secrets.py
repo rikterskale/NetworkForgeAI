@@ -84,7 +84,10 @@ def _fetch_json(url: str, timeout: float) -> dict[str, Any]:
     from urllib.request import urlopen
 
     with urlopen(url, timeout=timeout) as response:  # nosec B310 - scheme validated by HttpsJsonClient
-        return json.loads(response.read().decode("utf-8"))
+        parsed = json.loads(response.read().decode("utf-8"))
+    if not isinstance(parsed, dict):
+        raise ValueError("vault response must be a JSON object")
+    return parsed
 
 
 class SecretResolver:

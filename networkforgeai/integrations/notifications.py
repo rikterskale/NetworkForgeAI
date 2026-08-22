@@ -68,7 +68,7 @@ class HttpsJsonClient:
         self.headers = headers
         self.timeout = timeout
 
-    def post(self, payload: dict[str, Any]) -> int:
+    def post(self, payload: dict[str, Any] | list[Any]) -> int:
         request = Request(
             self.endpoint,
             data=json.dumps(payload).encode("utf-8"),
