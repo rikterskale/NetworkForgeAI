@@ -136,10 +136,19 @@ jobs:
       - run: '"$RUNNER_TEMP/networkforgeai-audit-venv/bin/python" -m pip install --upgrade pip pip-audit'
       - run: '"$RUNNER_TEMP/networkforgeai-venv/bin/python" -m pip install dist/*.whl'
       - run: '"$RUNNER_TEMP/networkforgeai-venv/bin/python" -m pip check'
-      - run: >-
-          "$RUNNER_TEMP/networkforgeai-audit-venv/bin/pip-audit"
-          --path "$RUNNER_TEMP/networkforgeai-venv/lib/python3.11/site-packages"
-          -f cyclonedx-json -o sbom.json
+      - run: |
+          set +e
+          "$RUNNER_TEMP/networkforgeai-audit-venv/bin/pip-audit" \
+            --path "$RUNNER_TEMP/networkforgeai-venv/lib/python3.11/site-packages" \
+            -f columns -o audit.txt
+          audit_status=$?
+          cat audit.txt
+          if [ "$audit_status" -ne 0 ]; then
+            exit "$audit_status"
+          fi
+          "$RUNNER_TEMP/networkforgeai-audit-venv/bin/pip-audit" \
+            --path "$RUNNER_TEMP/networkforgeai-venv/lib/python3.11/site-packages" \
+            -f cyclonedx-json -o sbom.json
       - run: '"$RUNNER_TEMP/networkforgeai-venv/bin/networkforgeai" --version'
         working-directory: ${{ runner.temp }}
       - run: '"$RUNNER_TEMP/networkforgeai-venv/bin/networkforgeai" --help'
