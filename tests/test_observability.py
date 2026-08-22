@@ -47,3 +47,10 @@ def test_redacts_credentials_and_command_digests_are_stable():
     rendered = obs.safe_command_string(["scanner", "--password", "secret-value", "target"])
     assert "secret-value" not in rendered
     assert obs.command_digest(["scanner", "target"]) == obs.command_digest(["scanner", "target"])
+
+
+def test_prometheus_metrics_are_secret_free():
+    obs.increment_metric("networkforgeai_test_metric")
+    output = obs.prometheus_metrics()
+    assert "networkforgeai_test_metric 1" in output
+    assert "secret" not in output

@@ -11,6 +11,9 @@ The production CI workflow runs:
 7. A clean wheel-install smoke test using the installed `networkforgeai`
    command.
 8. The strict user-readiness gate.
+9. Generated CLI/tool documentation drift checks.
+10. SBOM and release-provenance artifact generation.
+11. Linux, macOS, and Windows compatibility smoke tests on Python 3.10 and 3.13.
 
 The strict MyPy gate runs over `networkforgeai`. The maintained typed core,
 adapter, agent, and dashboard surfaces are expected to remain clean; any

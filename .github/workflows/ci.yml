@@ -67,7 +67,9 @@ jobs:
       - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.1.0
         with:
           python-version: "3.11"
+      - run: python -m pip install -e ".[runtime]"
       - run: python tools/ci_docs_audit.py --json | tee docs-audit.json
+      - run: python tools/generate_cli_docs.py --check
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.6.2
         with:
           name: documentation-audit
@@ -127,6 +129,9 @@ jobs:
           cache: pip
       - run: python -m pip install --upgrade pip build
       - run: python -m build --wheel --outdir dist
+      - run: python -m pip install pip-audit
+      - run: pip-audit -f cyclonedx-json -o sbom.json
+      - run: python tools/release_provenance.py --output release-provenance.json dist/*.whl
       - run: python -m venv "$RUNNER_TEMP/networkforgeai-venv"
       - run: '"$RUNNER_TEMP/networkforgeai-venv/bin/python" -m pip install --upgrade pip'
       - run: '"$RUNNER_TEMP/networkforgeai-venv/bin/python" -m pip install dist/*.whl'
@@ -147,11 +152,33 @@ jobs:
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.6.2
         with:
           name: networkforgeai-wheel
-          path: dist/*.whl
+          path: |
+            dist/*.whl
+            sbom.json
+            release-provenance.json
+
+  platform-compatibility:
+    name: Platform compatibility
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.1.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - run: python -m pip install -e ".[dev,runtime]"
+      - run: python -m pytest -q tests/test_platform_compatibility.py
+      - run: networkforgeai --version
 
   readiness:
     name: User readiness gate
-    needs: [quality, tests, documentation, container, integration, package-install, findings-policy]
+    needs: [quality, tests, documentation, container, integration, package-install, findings-policy, platform-compatibility]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

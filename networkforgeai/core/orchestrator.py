@@ -15,7 +15,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ..observability import bind_log_context
+from ..observability import bind_log_context, increment_metric
 from ..reporting import to_csv, to_json, to_pdf, to_sarif
 from .approval_gateway import ApprovalGateway, _as_utc
 from .base_agent import AgentState, AgentStatus, BaseAgent
@@ -143,6 +143,7 @@ class ScanOrchestrator:
         if self.status not in {ScanStatus.PENDING, ScanStatus.PAUSED}:
             raise RuntimeError(f"Cannot start scan from status {self.status.value}")
         self.status = ScanStatus.RUNNING
+        increment_metric("networkforgeai_scans_started_total")
         bind_log_context(scan_id=self.scan_id)
         self.started_at = datetime.now(timezone.utc)
         for agent in self.agents.values():
@@ -243,6 +244,11 @@ class ScanOrchestrator:
 
             self.status = ScanStatus.PARTIAL if self._phase_errors else ScanStatus.COMPLETED
             self.completed_at = datetime.now(timezone.utc)
+            increment_metric(
+                "networkforgeai_scans_partial_total"
+                if self._phase_errors
+                else "networkforgeai_scans_completed_total"
+            )
             logger.info(
                 "Scan %s finished with status %s. Found %d findings and %d phase errors.",
                 self.scan_id,
@@ -253,6 +259,7 @@ class ScanOrchestrator:
 
         except Exception as e:
             self.status = ScanStatus.ERROR
+            increment_metric("networkforgeai_scans_errors_total")
             self.completed_at = datetime.now(timezone.utc)
             logger.error("Scan failed with error: %s", e)
             raise
@@ -297,6 +304,7 @@ class ScanOrchestrator:
                         "error": str(result),
                     }
                     self._phase_errors.append(error)
+                    increment_metric("networkforgeai_phase_errors_total")
                     self.shared_context.setdefault("phase_errors", []).append(error)
                     logger.error(
                         "Agent execution error scan_id=%s phase=%s agent_id=%s: %s",

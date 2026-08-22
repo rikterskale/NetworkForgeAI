@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 try:
     from fastapi import Body, FastAPI, Header, HTTPException
+    from fastapi.responses import PlainTextResponse
 except ImportError:  # pragma: no cover - deployment dependency
     FastAPI = None  # type: ignore[assignment,misc]
 
@@ -66,6 +67,14 @@ def create_app(orchestrator: ScanOrchestrator | None = None) -> FastAPI:
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/metrics", response_class=PlainTextResponse)
+    def metrics(authorization: str | None = Header(default=None)) -> str:
+        """Expose secret-free operational counters to authenticated viewers."""
+        authorize(authorization, required_role="viewer")
+        from ..observability import prometheus_metrics
+
+        return prometheus_metrics()
 
     @app.get("/", include_in_schema=False)
     def operator_console() -> Any:

@@ -25,6 +25,16 @@ REPORT_OUTPUT_DIR=./reports
 An empty `TARGET_SCOPE` denies execution by default. The CLI also accepts a
 one-run scope through repeated `--scope` arguments.
 
+Use structured diagnostics before a scan to inspect safety posture without
+printing secret values:
+
+```bash
+networkforgeai --diagnose-config
+```
+
+The command returns JSON with individual checks, safe details, and a non-zero
+status when the configuration is not ready.
+
 ## Environment variable reference
 
 ### LLM providers

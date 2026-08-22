@@ -5,6 +5,7 @@ Loads settings from environment variables with validation for safety-critical se
 """
 
 from enum import Enum
+from pathlib import Path
 from typing import List, Optional
 
 from pydantic import Field, field_validator
@@ -103,6 +104,7 @@ class Settings(BaseSettings):
 
     # Logging
     log_level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
+    log_format: str = Field(default="text", pattern="^(text|json)$")
 
     @property
     def parsed_target_scope(self) -> List[str]:
@@ -146,6 +148,59 @@ class Settings(BaseSettings):
                 "DASHBOARD_AUTH_TOKEN must be changed from the development placeholder"
             )
         return True
+
+    def diagnostics(self) -> list[dict[str, object]]:
+        """Return safe, structured diagnostics without exposing secret values."""
+        token = self.dashboard_auth_token.strip()
+        report_dir = Path(self.report_output_dir).expanduser()
+        return [
+            {
+                "name": "target_scope",
+                "ok": bool(self.parsed_target_scope),
+                "detail": f"{len(self.parsed_target_scope)} authorized scope "
+                f"{'entry' if len(self.parsed_target_scope) == 1 else 'entries'}",
+            },
+            {
+                "name": "approval_mode",
+                "ok": self.is_strict_mode,
+                "detail": self.approval_mode.value,
+            },
+            {
+                "name": "destructive_actions_blocked",
+                "ok": self.block_destructive_actions,
+                "detail": str(self.block_destructive_actions).lower(),
+            },
+            {
+                "name": "exploitation_justification",
+                "ok": self.require_justification_for_exploitation,
+                "detail": str(self.require_justification_for_exploitation).lower(),
+            },
+            {
+                "name": "dashboard_token",
+                "ok": bool(token)
+                and not any(marker in token.lower() for marker in self._PLACEHOLDER_TOKEN_MARKERS),
+                "detail": "configured" if token else "missing (protected routes deny access)",
+            },
+            {
+                "name": "report_output_directory",
+                "ok": report_dir.exists() and report_dir.is_dir() or report_dir.parent.exists(),
+                "detail": str(report_dir),
+            },
+            {
+                "name": "llm_provider",
+                "ok": True,
+                "required": False,
+                "detail": "configured"
+                if (
+                    self.openai_api_key
+                    or self.anthropic_api_key
+                    or self.google_api_key
+                    or self.local_llm_url
+                )
+                else "optional provider not configured",
+            },
+            {"name": "logging", "ok": True, "detail": f"{self.log_level}/{self.log_format}"},
+        ]
 
 
 # Global settings instance

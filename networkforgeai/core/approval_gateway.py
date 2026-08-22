@@ -16,7 +16,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, Optional
 
-from ..observability import redact_mapping
+from ..observability import increment_metric, redact_mapping
 
 logger = logging.getLogger(__name__)
 
@@ -170,6 +170,7 @@ class ApprovalGateway:
             command_digest=command_digest,
             expires_at=datetime.now(timezone.utc) + timedelta(seconds=timeout_seconds),
         )
+        increment_metric("networkforgeai_approvals_requested_total")
 
         async with self._lock:
             self.requests[request.id] = request
@@ -215,6 +216,7 @@ class ApprovalGateway:
             request.response_data = response_data
 
         self._audit(request)
+        increment_metric("networkforgeai_approvals_approved_total")
 
         # Notify callbacks
         for callback in self.callbacks.values():
@@ -240,6 +242,7 @@ class ApprovalGateway:
             request.rejection_reason = reason
 
         self._audit(request)
+        increment_metric("networkforgeai_approvals_rejected_total")
 
         # Notify callbacks
         for callback in self.callbacks.values():

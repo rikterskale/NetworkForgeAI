@@ -16,10 +16,13 @@ import re
 import shlex
 from collections.abc import Mapping, Sequence
 from contextvars import ContextVar
+from threading import Lock
 from typing import Any
 
 _CONFIGURED = False
 _LOG_CONTEXT: ContextVar[dict[str, str]] = ContextVar("networkforgeai_log_context", default={})
+_METRICS: dict[str, float] = {}
+_METRICS_LOCK = Lock()
 
 _DEFAULT_FORMAT = "%(asctime)s %(levelname)s %(name)s scan_id=%(scan_id)s %(message)s"
 
@@ -58,6 +61,21 @@ def bind_log_context(**values: str) -> None:
 def clear_log_context() -> None:
     """Clear correlation fields for the current async context."""
     _LOG_CONTEXT.set({})
+
+
+def increment_metric(name: str, value: float = 1.0) -> None:
+    """Increment a process metric used by the operational dashboard."""
+    with _METRICS_LOCK:
+        _METRICS[name] = _METRICS.get(name, 0.0) + value
+
+
+def prometheus_metrics() -> str:
+    """Render secret-free metrics in Prometheus text exposition format."""
+    with _METRICS_LOCK:
+        snapshot = dict(_METRICS)
+    lines = ["# HELP networkforgeai_metric Process metric.", "# TYPE networkforgeai_metric gauge"]
+    lines.extend(f"{name} {value:g}" for name, value in sorted(snapshot.items()))
+    return "\n".join(lines) + "\n"
 
 
 _SECRET_KEY = re.compile(

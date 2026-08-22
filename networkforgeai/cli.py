@@ -85,6 +85,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Validate environment configuration and safety defaults",
     )
+    parser.add_argument(
+        "--diagnose-config",
+        action="store_true",
+        help="Print structured, secret-safe configuration diagnostics",
+    )
     parser.add_argument("--version", action="version", version=f"NetworkForgeAI {__version__}")
     return parser
 
@@ -115,6 +120,21 @@ def main(argv: list[str] | None = None) -> int:
         settings.validate_security_config()
         print("Configuration is valid for authorized scanning.")
         return 0
+    if args.diagnose_config:
+        from .config import Settings
+
+        try:
+            settings = Settings()
+            diagnostics = settings.diagnostics()
+            print(
+                json.dumps(
+                    {"ok": all(item["ok"] for item in diagnostics), "checks": diagnostics}, indent=2
+                )
+            )
+            return 0 if all(item["ok"] for item in diagnostics) else 2
+        except Exception as exc:
+            print(json.dumps({"ok": False, "checks": [], "error": str(exc)}, indent=2))
+            return 2
     if not args.target or not args.scope:
         raise SystemExit("--target and --scope are required for scan operations")
     policy = ScopePolicy(args.scope, args.exclude)

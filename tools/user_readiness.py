@@ -168,6 +168,12 @@ with TemporaryDirectory() as directory:
             checks,
             {"TARGET_SCOPE": "example.com", "DASHBOARD_AUTH_TOKEN": "readiness-token"},
         )
+        run(
+            "structured configuration diagnostics",
+            [python, "-m", "networkforgeai.cli", "--diagnose-config"],
+            checks,
+            {"TARGET_SCOPE": "example.com", "DASHBOARD_AUTH_TOKEN": "readiness-token"},
+        )
     else:
         checks.append(
             {
@@ -221,6 +227,8 @@ with TemporaryDirectory() as directory:
     assert report_listing["total"] == 2
     assert routes["/reports/{report_path:path}"]("scan-1/findings.json", authorization)["content"] == []
     assert routes["/scans"](authorization)["scans"][0]["scan_id"] == "scan-1"
+    metrics = routes["/metrics"](authorization)
+    assert "networkforgeai_" in metrics
 """
     if importlib.util.find_spec("fastapi"):
         run("authenticated dashboard read-only API", [python, "-c", dashboard_script], checks)

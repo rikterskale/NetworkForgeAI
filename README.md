@@ -244,6 +244,7 @@ jobs:
 - [Installation Guide](docs/installation.md)
 - [Configuration Reference](docs/configuration.md)
 - [CLI Reference and Beginner Workflows](docs/cli-reference.md)
+- [Generated CLI and Tool Reference](docs/generated/cli-and-tools.md)
 - [Troubleshooting Guide](docs/troubleshooting.md)
 - [Example Scan Scenarios](docs/scenarios.md)
 - [Deployment Guide](docs/deployment.md)

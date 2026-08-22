@@ -36,6 +36,8 @@ The dashboard requires `Authorization: Bearer <token>` for all endpoints except
 Read-only surfaces:
 
 - `GET /health` — liveness response.
+- `GET /metrics` — authenticated Prometheus-format operational counters for
+  scans, approvals, and phase errors.
 - `GET /` — dependency-free operator console (static shell; no data without a token).
   The console is a tabbed GUI: **Live** (steering, agent graph, agent status,
   approval queue), **Scans & findings** (persisted scans with click-through

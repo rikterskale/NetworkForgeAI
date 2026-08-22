@@ -23,6 +23,10 @@ security:
 
 docs:
 	$(PYTHON) tools/ci_docs_audit.py
+	$(PYTHON) tools/generate_cli_docs.py --check
+
+docs-generate:
+	$(PYTHON) tools/generate_cli_docs.py
 
 findings-gate:
 	@test -n "$(INPUT)" || (echo "Usage: make findings-gate INPUT=path/to/findings.json" && exit 2)
