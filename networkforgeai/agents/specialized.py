@@ -97,8 +97,8 @@ async def _run_gated_scan(
     self_gates = bool(getattr(tool, "_approval_required", lambda: False)())
 
     requires_policy_approval = action_requires_approval(
-        getattr(tool, "risk_level", "medium"),
-        getattr(getattr(tool, "category", None), "value", ""),
+        getattr(tool, "risk_level", risk_level),
+        getattr(getattr(tool, "category", None), "value", action_type),
         passive=getattr(tool, "passive", False),
         dry_run=is_dry,
     )
@@ -401,7 +401,12 @@ class NetworkExploitationAgent(ContextAgent):
             justification = str(entry.get("justification") or "").strip()
             if not justification:
                 statuses.append(
-                    {"target": target, "module": module, "status": "missing_justification"}
+                    {
+                        "target": target,
+                        "module": module,
+                        "status": "rejected",
+                        "reason": "missing_justification",
+                    }
                 )
                 continue
             options = {

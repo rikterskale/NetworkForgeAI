@@ -2,6 +2,7 @@ import json
 
 import pytest
 
+from networkforgeai.core.approval_gateway import ApprovalGateway
 from networkforgeai.core.scope import ScopePolicy
 from networkforgeai.tools import (
     BrowserAutomationTool,
@@ -39,6 +40,7 @@ def test_high_risk_tool_cannot_execute_without_gateway():
 def test_sandbox_execution_fails_closed_without_configured_image():
     tool = NmapTool()
     tool.scope_policy = ScopePolicy(["example.com"])
+    tool.approval_gateway = ApprovalGateway(mode="lenient")
     result = tool.execute("example.com")
     assert result.exit_code == -1
     assert "SANDBOX_IMAGE" in result.stderr
