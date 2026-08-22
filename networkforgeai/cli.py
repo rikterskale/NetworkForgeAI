@@ -10,7 +10,14 @@ from typing import Any
 
 from . import __version__
 from .agents.recon_agent import ReconAgent
-from .agents.specialized import PlanningAgent, QualityAssuranceAgent
+from .agents.specialized import (
+    APISecurityAgent,
+    NetworkExploitationAgent,
+    PlanningAgent,
+    PostExploitationAgent,
+    QualityAssuranceAgent,
+    WebApplicationAgent,
+)
 from .agents.vuln_scanner_agent import VulnerabilityScannerAgent
 from .core.orchestrator import ScanConfig, ScanOrchestrator
 from .core.scope import ScopePolicy
@@ -43,6 +50,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--output-dir", default="./scans")
     parser.add_argument("--orchestrate", action="store_true", help="Run the basic agent workflow")
+    parser.add_argument(
+        "--profile",
+        choices=["recon", "appsec", "full"],
+        default="recon",
+        help=(
+            "Agent depth: 'recon' (recon+vuln+planning+QA), 'appsec' (adds web+API "
+            "testing), 'full' (adds exploitation+post-exploitation, always approval-gated)"
+        ),
+    )
+    parser.add_argument(
+        "--exploit-plan",
+        metavar="PATH",
+        help=(
+            "JSON file with an explicit exploit plan for the 'full' profile: a list of "
+            '{"target","module","payload","set_options","justification"} entries. Every '
+            "entry still requires explicit human approval before execution."
+        ),
+    )
     parser.add_argument(
         "--provider",
         choices=["openai", "anthropic", "google", "local", "litellm"],
@@ -129,6 +154,25 @@ def main(argv: list[str] | None = None) -> int:
     )
     orchestrator.register_agent(PlanningAgent())
     orchestrator.register_agent(QualityAssuranceAgent())
+
+    if args.profile in {"appsec", "full"}:
+        orchestrator.register_agent(
+            WebApplicationAgent(model_adapter=model_adapter, tool_registry=tool_registry)
+        )
+        orchestrator.register_agent(
+            APISecurityAgent(model_adapter=model_adapter, tool_registry=tool_registry)
+        )
+    if args.profile == "full":
+        orchestrator.register_agent(
+            NetworkExploitationAgent(model_adapter=model_adapter, tool_registry=tool_registry)
+        )
+        orchestrator.register_agent(
+            PostExploitationAgent(model_adapter=model_adapter, tool_registry=tool_registry)
+        )
+        exploit_plan = _load_exploit_plan(args.exploit_plan)
+        if exploit_plan is not None:
+            orchestrator.shared_context["exploit_plan"] = exploit_plan
+
     asyncio.run(_run(orchestrator, args.orchestrate))
     print(f"Scan {orchestrator.scan_id} completed: {orchestrator.save_dir}")
     return 0
@@ -159,6 +203,18 @@ def _build_tool_registry(
             approval_gateway=orchestrator.approval_gateway,
         )
     return registry
+
+
+def _load_exploit_plan(path: str | None) -> list[dict[str, Any]] | None:
+    """Load and validate an operator-supplied exploit plan (JSON list of entries)."""
+    if not path:
+        return None
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(data, list) or not all(
+        isinstance(entry, dict) and entry.get("module") for entry in data
+    ):
+        raise SystemExit("--exploit-plan must be a JSON list of objects each with a 'module'")
+    return data
 
 
 def _list_reports(output_dir: str) -> list[str]:

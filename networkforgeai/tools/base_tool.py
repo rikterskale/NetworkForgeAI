@@ -180,7 +180,12 @@ class BaseTool(ABC):
         return self._run_command(target, options, timeout)
 
     async def execute_async(
-        self, target: str, options: Optional[Dict[str, Any]] = None, timeout: int = 300
+        self,
+        target: str,
+        options: Optional[Dict[str, Any]] = None,
+        timeout: int = 300,
+        *,
+        approval_details: Optional[Dict[str, Any]] = None,
     ) -> ToolResult:
         """Async execution for use inside an event loop (e.g. agent orchestration).
 
@@ -188,6 +193,11 @@ class BaseTool(ABC):
         callbacks fire on the running loop, and the blocking subprocess is
         offloaded to a worker thread. This avoids the nested-event-loop
         limitation of the synchronous :meth:`execute` path.
+
+        ``approval_details`` lets the caller enrich the human-facing approval
+        request (e.g. the selected exploit module and a written justification)
+        so an operator sees the full context before authorizing a high-risk
+        action. It never relaxes the gate; it only adds context.
         """
         import asyncio
 
@@ -197,13 +207,16 @@ class BaseTool(ABC):
         if self._approval_required() and not self.dry_run:
             if self.approval_gateway is None:
                 raise PermissionError(f"{self.name} requires an approval gateway")
+            details: Dict[str, Any] = {"command_builder": self.name}
+            if approval_details:
+                details.update(approval_details)
             request = await self.approval_gateway.request_approval(
                 agent_id=f"tool:{self.name}",
                 action_type=self.name,
                 description=f"Execute {self.name} against {target}",
                 target=target,
                 risk_level=RiskLevel(self.risk_level.value),
-                details={"command_builder": self.name},
+                details=details,
                 timeout_seconds=timeout,
             )
             final = await self.approval_gateway.wait_for_approval(request.id)

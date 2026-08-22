@@ -4,6 +4,32 @@ All notable changes to NetworkForgeAI are documented here. The project follows
 the safety invariant that every offensive action requires explicit scope and,
 for high-risk operations, human approval.
 
+## [Unreleased]
+
+### Offensive depth (vendor-grade)
+
+- **Correlation & scoring pipeline** (`core/enrichment`): deduplicates findings,
+  scores each with CVSS v3.1 and business-impact adjustment, suppresses obvious
+  false positives, attaches advisory PoC steps, tags MITRE ATT&CK techniques,
+  and correlates chained attack paths. Wired into a rebuilt `PlanningAgent`.
+- **MITRE ATT&CK mapping** (`core/mitre`): finding-type and attack-stage → ATT&CK
+  tactic/technique, plus a tactic coverage matrix for reports.
+- **Web/API testing agents**: `WebApplicationAgent` drives `nikto`/`owasp-zap`
+  for OWASP Top 10 surface (approval-gated); `APISecurityAgent` runs real
+  `graphql-probe` and `jwt-analyzer` probes with advisory BOLA/BFLA reasoning.
+- **Exploitation** (`NetworkExploitationAgent`): runs operator-supplied
+  Metasploit modules one at a time; every run self-gates as CRITICAL and
+  carries a justification. Confirmed sessions become `validated=True` findings.
+- **Post-exploitation** (`PostExploitationAgent`): emits an ATT&CK-mapped plan
+  with every objective blocked pending explicit approval; never self-executes.
+- **Report depth** (`reporting/narrative`): `report.md` now includes an
+  executive summary (severity table + top risks + CVSS), a MITRE ATT&CK
+  coverage table, and correlated attack-chain narratives.
+- **CLI**: new `--profile {recon,appsec,full}` selects agent depth, and
+  `--exploit-plan <file.json>` supplies the operator's approved exploit plan.
+- Approval requests can now carry caller-supplied context (`approval_details`)
+  so an operator sees the exploit module and justification before authorizing.
+
 ## [0.1.0] - 2026-08-21
 
 ### Safety & Governance

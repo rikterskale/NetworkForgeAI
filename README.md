@@ -133,6 +133,28 @@ networkforgeai \
 Every invocation requires an explicit allow-list scope. High-risk tools also
 require an approval gateway and cannot execute directly without one.
 
+### 3a. Choose an agent depth profile (optional)
+
+An orchestrated scan (`--orchestrate`) selects its agent team with `--profile`:
+
+- `recon` (default): reconnaissance, vulnerability triage, correlation/attack-path
+  planning, and QA.
+- `appsec`: adds the web (`nikto`/`owasp-zap`) and API (`graphql-probe`/
+  `jwt-analyzer`) testing agents.
+- `full`: adds exploitation and post-exploitation. Exploitation runs **only**
+  operator-supplied Metasploit modules from `--exploit-plan <file.json>`, and
+  every module self-gates as a CRITICAL approval carrying a justification. No
+  exploit runs without an explicit human approval.
+
+```bash
+networkforgeai \
+  --target example.com --scope example.com \
+  --orchestrate --profile appsec --dry-run
+```
+
+Reports (`report.md`) include an executive summary with CVSS, a MITRE ATT&CK
+coverage table, and correlated attack-chain narratives.
+
 ### 4. Start the dashboard API (optional)
 ```bash
 export DASHBOARD_AUTH_TOKEN='replace-with-a-random-token'

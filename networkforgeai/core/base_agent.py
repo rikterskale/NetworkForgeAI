@@ -282,19 +282,26 @@ class BaseAgent(ABC):
         target: str,
         options: Optional[Dict[str, Any]] = None,
         timeout: int = 300,
+        *,
+        approval_details: Optional[Dict[str, Any]] = None,
     ) -> Any:
         """Run a registered tool wrapper against ``target`` and return its ``ToolResult``.
 
         Returns ``None`` when no such tool is registered so callers can fall back
         to a clearly-labeled "not executed" result instead of fabricating output.
         Approval (for high-risk tools) is enforced inside the tool via the shared
-        gateway; scope is enforced by the tool's ``scope_policy``.
+        gateway; scope is enforced by the tool's ``scope_policy``. ``approval_details``
+        is forwarded to enrich the human-facing approval request.
         """
         tool = self.tool_registry.get(name)
         if tool is None:
             return None
         if getattr(tool, "approval_gateway", None) is None and self.approval_gateway is not None:
             tool.approval_gateway = self.approval_gateway
+        if approval_details is not None:
+            return await tool.execute_async(
+                target, options, timeout, approval_details=approval_details
+            )
         return await tool.execute_async(target, options, timeout)
 
     async def llm_hypotheses(

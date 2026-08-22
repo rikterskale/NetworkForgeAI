@@ -17,6 +17,11 @@ from .models import (
     normalize_finding,
     remediation_for,
 )
+from .narrative import (
+    attack_coverage_section,
+    attack_path_section,
+    executive_summary,
+)
 
 __all__ = [
     "annotate_compliance",
@@ -31,6 +36,9 @@ __all__ = [
     "to_json",
     "to_pdf",
     "to_sarif",
+    "executive_summary",
+    "attack_coverage_section",
+    "attack_path_section",
     "Evidence",
     "Finding",
     "FindingStatus",

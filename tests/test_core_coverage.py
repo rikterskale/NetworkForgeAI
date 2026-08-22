@@ -399,21 +399,32 @@ def test_specialized_agents_return_safe_workflows():
             "discovered_urls": ["https://example.com"],
         }
         planning = await PlanningAgent().execute("plan", context)
-        assert len(planning["context_updates"]["attack_paths"]) == 2
+        # PlanningAgent now runs the correlation/enrichment engine.
+        assert "enriched_findings" in planning["context_updates"]
+        assert isinstance(planning["context_updates"]["attack_paths"], list)
+        assert "attack_coverage" in planning["context_updates"]
         reporting = await ReportingAgent().execute("report", context)
         assert len(reporting["findings"]) == 2
         qa = await QualityAssuranceAgent().execute("qa", context)
         assert len(qa["findings"]) == 1
+        # No web scanner or model registered -> honest status, no fabrication.
         web = await WebApplicationAgent().execute("web", context)
-        assert web["context_updates"]["active_testing_requires_approval"]
+        assert web["context_updates"]["web_testing_status"] == "no_tool_or_model"
+        assert web["findings"] == []
+        # No API surface supplied -> honest status.
         api = await APISecurityAgent().execute("api", context)
-        assert api["context_updates"]["api_testing_plan"]["requires_approval"]
-        assert (await NetworkExploitationAgent().execute("exploit", context))["context_updates"][
-            "exploitation_blocked"
-        ]
-        assert (await PostExploitationAgent().execute("post", context))["context_updates"][
-            "post_exploitation_blocked"
-        ]
+        assert api["context_updates"]["api_testing_status"] == "no_api_surface"
+        # No exploit tool registered -> fail closed with an explicit status.
+        exploit = await NetworkExploitationAgent().execute("exploit", context)
+        assert exploit["context_updates"]["exploitation_status"] == "no_exploit_tool_registered"
+        assert exploit["findings"] == []
+        # Post-exploitation stays blocked pending approval and emits an ATT&CK plan.
+        post = await PostExploitationAgent().execute("post", context)
+        assert post["context_updates"]["post_exploitation_blocked"]
+        assert post["context_updates"]["post_exploitation_plan"]
+        assert all(
+            step["requires_approval"] for step in post["context_updates"]["post_exploitation_plan"]
+        )
 
     run(scenario())
 
@@ -779,9 +790,13 @@ def test_orchestrator_planning_and_qa_phases(tmp_path):
         await orchestrator.execute_scan()
 
         assert orchestrator.status is ScanStatus.COMPLETED
-        paths = orchestrator.shared_context["attack_paths"]
-        assert len(paths) == 3
-        assert all(path["requires_approval"] for path in paths)
+        # PlanningAgent runs the enrichment engine; attack_paths is now a list of
+        # scored chains (possibly empty for trivial same-stage findings) and the
+        # enriched findings carry CVSS + ATT&CK metadata.
+        assert isinstance(orchestrator.shared_context["attack_paths"], list)
+        enriched = orchestrator.shared_context["enriched_findings"]
+        assert enriched and all("cvss_score" in row for row in enriched)
+        assert all("attack_techniques" in row for row in enriched)
         assert len(orchestrator.findings) == 2
         assert orchestrator.shared_context["findings"] == orchestrator.findings
 

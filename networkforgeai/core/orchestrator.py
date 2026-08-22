@@ -25,6 +25,14 @@ from .task_queue import AgentTask, TaskQueue
 logger = logging.getLogger(__name__)
 
 
+def _format_poc(poc: Any) -> str:
+    """Render a PoC that may be a plain string or an enriched ``{commands: [...]}``."""
+    if isinstance(poc, dict):
+        commands = poc.get("commands") or []
+        return "\n".join(str(command) for command in commands) or "No PoC available"
+    return str(poc) if poc else "No PoC available"
+
+
 class ScanStatus(Enum):
     PENDING = "pending"
     RUNNING = "running"
@@ -370,7 +378,22 @@ class ScanOrchestrator:
             f.write(md_report)
 
     def _generate_markdown_report(self) -> str:
-        """Generate a Markdown report from findings."""
+        """Generate a vendor-grade Markdown report from findings.
+
+        Uses the enrichment pass output (CVSS, ATT&CK, correlated attack paths)
+        when the PlanningAgent has populated it in shared context; otherwise it
+        summarizes the raw findings without fabricating correlation data.
+        """
+        from ..reporting.narrative import (
+            attack_coverage_section,
+            attack_path_section,
+            executive_summary,
+        )
+
+        enriched = self.shared_context.get("enriched_findings") or []
+        report_findings = enriched if enriched else self.findings
+        attack_paths = self.shared_context.get("attack_paths") or []
+
         lines = [
             "# NetworkForgeAI Penetration Test Report",
             "",
@@ -380,42 +403,39 @@ class ScanOrchestrator:
             f"**Completed:** {self.completed_at.isoformat() if self.completed_at else 'In Progress'}",
             f"**Status:** {self.status.value}",
             "",
-            "## Executive Summary",
-            "",
-            f"Total findings: {len(self.findings)}",
-            "",
         ]
+        lines.extend(executive_summary(report_findings, target=self.config.target))
+        lines.extend(attack_coverage_section(report_findings))
+        lines.extend(attack_path_section(attack_paths))
 
-        # Group by severity
-        by_severity: dict[str, list[dict[str, Any]]] = {}
-        for finding in self.findings:
-            sev = finding.get("severity", "Unknown")
-            by_severity.setdefault(sev, []).append(finding)
+        lines.extend(["## Detailed Findings", ""])
 
-        for severity, findings in sorted(by_severity.items()):
-            lines.append(f"### {severity}: {len(findings)}")
-
-        lines.extend(["", "## Detailed Findings", ""])
-
-        for i, finding in enumerate(self.findings, 1):
+        for i, finding in enumerate(report_findings, 1):
+            severity = finding.get("adjusted_severity") or finding.get("severity", "Unknown")
+            cvss = finding.get("adjusted_cvss") or finding.get("cvss_score")
+            techniques = ", ".join(
+                f"{t.get('id')} {t.get('name')}" for t in finding.get("attack_techniques", [])
+            )
             lines.extend(
                 [
                     f"### Finding {i}: {finding.get('title', 'Untitled')}",
                     "",
-                    f"**Severity:** {finding.get('severity', 'Unknown')}",
-                    f"**Category:** {finding.get('category', 'Unknown')}",
+                    f"**Severity:** {severity}" + (f" (CVSS {cvss})" if cvss else ""),
                     f"**Target:** {finding.get('target', 'Unknown')}",
+                ]
+            )
+            if techniques:
+                lines.append(f"**ATT&CK:** {techniques}")
+            lines.extend(
+                [
                     "",
                     "**Description:**",
                     finding.get("description", "No description"),
                     "",
                     "**Proof of Concept:**",
                     "```",
-                    finding.get("poc", "No PoC available"),
+                    _format_poc(finding.get("poc")),
                     "```",
-                    "",
-                    "**Reproduction Steps:**",
-                    finding.get("reproduction_steps", "No steps provided"),
                     "",
                     "**Remediation:**",
                     finding.get("remediation", "No remediation guidance"),

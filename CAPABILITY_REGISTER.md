@@ -68,10 +68,10 @@
 | ID | Agent Type | Status | Capabilities |
 |----|------------|--------|--------------|
 | AGT-101 | Reconnaissance Agent | ✅ | Subdomain enum, port scanning, service detection |
-| AGT-102 | Web Application Agent | ✅ | OWASP Top 10 testing, directory brute-forcing |
-| AGT-103 | API Security Agent | ✅ | REST/GraphQL testing, auth bypass attempts |
-| AGT-104 | Network Exploitation Agent | ✅ | Vulnerability validation, exploit chaining |
-| AGT-105 | Post-Exploitation Agent | ✅ | Lateral movement, privilege escalation |
+| AGT-102 | Web Application Agent | ✅ | Drives `nikto`/`owasp-zap` for OWASP Top 10 surface (approval-gated); advisory hypotheses when no scanner; `--profile appsec`/`full` |
+| AGT-103 | API Security Agent | ✅ | Real `graphql-probe` + `jwt-analyzer` probes; BOLA/BFLA reasoning advisory-only; `--profile appsec`/`full` |
+| AGT-104 | Network Exploitation Agent | ✅ | Runs operator-supplied Metasploit modules one at a time; every run self-gates as CRITICAL with justification; `--profile full` + `--exploit-plan` |
+| AGT-105 | Post-Exploitation Agent | ✅ | Emits an ATT&CK-mapped plan (persistence/privesc/cred-access/lateral/collection); every objective blocked pending approval; never self-executes |
 | AGT-106 | Reporting Agent | ✅ | Finding compilation, report generation |
 | AGT-107 | Planning Agent | ✅ | Attack path planning phase in `ScanOrchestrator` (approval-gated); registered in CLI scan |
 | AGT-108 | Quality Assurance Agent | ✅ | Finding dedup/validation QA phase in `ScanOrchestrator`; registered in CLI scan |
@@ -388,6 +388,9 @@ installed in CI so optional provider adapters typecheck against real stubs.
 | ID | Feature | Status | Notes |
 |----|---------|--------|-------|
 | ADV-101 | Attack path auto-discovery | ✅ | `core/attack_paths.discover_attack_paths`: stage-chained attack graph with scored simple paths (advisory only) |
+| ADV-201 | MITRE ATT&CK technique mapping | ✅ | `core/mitre`: finding-type/stage → ATT&CK tactic+technique, plus tactic coverage matrix |
+| ADV-202 | Finding enrichment & correlation pipeline | ✅ | `core/enrichment.enrich_findings`: dedup + CVSS + impact + FP suppression + ATT&CK + attack paths; wired into `PlanningAgent` |
+| RPT-201 | Vendor-grade report narrative | ✅ | `reporting/narrative`: executive summary, ATT&CK coverage table, and attack-chain narratives in `report.md` |
 | ADV-102 | Vulnerability correlation | 🔍 | ML-based pattern matching |
 | ADV-103 | Threat intelligence integration | 🔍 | External feeds |
 | ADV-104 | Predictive risk scoring | 🔍 | Historical data analysis |
