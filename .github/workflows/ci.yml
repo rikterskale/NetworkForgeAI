@@ -132,9 +132,14 @@ jobs:
       - run: python tools/release_provenance.py --output release-provenance.json dist/*.whl
       - run: python -m venv "$RUNNER_TEMP/networkforgeai-venv"
       - run: '"$RUNNER_TEMP/networkforgeai-venv/bin/python" -m pip install --upgrade pip'
-      - run: '"$RUNNER_TEMP/networkforgeai-venv/bin/python" -m pip install pip-audit dist/*.whl'
+      - run: python -m venv "$RUNNER_TEMP/networkforgeai-audit-venv"
+      - run: '"$RUNNER_TEMP/networkforgeai-audit-venv/bin/python" -m pip install --upgrade pip pip-audit'
+      - run: '"$RUNNER_TEMP/networkforgeai-venv/bin/python" -m pip install dist/*.whl'
       - run: '"$RUNNER_TEMP/networkforgeai-venv/bin/python" -m pip check'
-      - run: '"$RUNNER_TEMP/networkforgeai-venv/bin/pip-audit" -f cyclonedx-json -o sbom.json'
+      - run: >-
+          "$RUNNER_TEMP/networkforgeai-audit-venv/bin/pip-audit"
+          --path "$RUNNER_TEMP/networkforgeai-venv/lib/python3.11/site-packages"
+          -f cyclonedx-json -o sbom.json
       - run: '"$RUNNER_TEMP/networkforgeai-venv/bin/networkforgeai" --version'
         working-directory: ${{ runner.temp }}
       - run: '"$RUNNER_TEMP/networkforgeai-venv/bin/networkforgeai" --help'
