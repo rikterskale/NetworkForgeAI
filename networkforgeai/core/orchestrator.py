@@ -7,6 +7,7 @@ and maintains shared context across all agents in a scan session.
 
 import asyncio
 import json
+import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -20,6 +21,8 @@ from .base_agent import AgentState, AgentStatus, BaseAgent
 from .knowledge_base import KnowledgeBase
 from .message_bus import MessageBus
 from .task_queue import AgentTask, TaskQueue
+
+logger = logging.getLogger(__name__)
 
 
 class ScanStatus(Enum):
@@ -141,7 +144,7 @@ class ScanOrchestrator:
         # Register approval callback to log all requests
         self.approval_gateway.register_callback("logger", self._log_approval_request)
 
-        print(f"[Orchestrator] Scan {self.scan_id} started for target: {self.config.target}")
+        logger.info("Scan %s started for target: %s", self.scan_id, self.config.target)
 
     async def _log_approval_request(self, request: Any) -> None:
         """Log all approval requests for audit trail."""
@@ -176,7 +179,7 @@ class ScanOrchestrator:
                 a for a in self.agents.values() if "reconnaissance" in a.get_capabilities()
             ]
             if recon_agents:
-                print("[Orchestrator] Starting reconnaissance phase...")
+                logger.info("Starting reconnaissance phase")
                 await self._execute_phase(recon_agents, "reconnaissance")
 
             # Phase 2: Vulnerability scanning
@@ -184,7 +187,7 @@ class ScanOrchestrator:
                 a for a in self.agents.values() if "vulnerability_scanning" in a.get_capabilities()
             ]
             if vuln_agents:
-                print("[Orchestrator] Starting vulnerability scanning phase...")
+                logger.info("Starting vulnerability scanning phase")
                 await self._execute_phase(vuln_agents, "vulnerability_scanning")
 
             # Phase 2.5: Attack path planning (prioritized, approval-gated)
@@ -192,7 +195,7 @@ class ScanOrchestrator:
                 a for a in self.agents.values() if "attack_path_planning" in a.get_capabilities()
             ]
             if planning_agents:
-                print("[Orchestrator] Starting attack path planning phase...")
+                logger.info("Starting attack path planning phase")
                 self.shared_context["vulnerabilities"] = list(self.findings)
                 await self._execute_phase(planning_agents, "attack_path_planning")
 
@@ -201,7 +204,7 @@ class ScanOrchestrator:
                 a for a in self.agents.values() if "exploitation" in a.get_capabilities()
             ]
             if exploit_agents:
-                print("[Orchestrator] Starting exploitation phase (awaiting approvals)...")
+                logger.info("Starting exploitation phase (awaiting approvals)")
                 await self._execute_phase(exploit_agents, "exploitation")
 
             # Phase 4: Post-exploitation (requires approvals)
@@ -209,7 +212,7 @@ class ScanOrchestrator:
                 a for a in self.agents.values() if "post_exploitation" in a.get_capabilities()
             ]
             if post_exploit_agents:
-                print("[Orchestrator] Starting post-exploitation phase (awaiting approvals)...")
+                logger.info("Starting post-exploitation phase (awaiting approvals)")
                 await self._execute_phase(post_exploit_agents, "post_exploitation")
 
             # Phase 4.5: Quality assurance (deduplicate and validate findings)
@@ -217,7 +220,7 @@ class ScanOrchestrator:
                 a for a in self.agents.values() if "quality_assurance" in a.get_capabilities()
             ]
             if qa_agents and self.findings:
-                print("[Orchestrator] Running quality assurance on findings...")
+                logger.info("Running quality assurance on findings")
                 self.shared_context["findings"] = list(self.findings)
                 await self._execute_phase(qa_agents, "quality_assurance")
                 deduplicated = self.shared_context.get("deduplicated_findings")
@@ -227,12 +230,12 @@ class ScanOrchestrator:
 
             self.status = ScanStatus.COMPLETED
             self.completed_at = datetime.now(timezone.utc)
-            print(f"[Orchestrator] Scan completed. Found {len(self.findings)} vulnerabilities.")
+            logger.info("Scan completed. Found %d findings.", len(self.findings))
 
         except Exception as e:
             self.status = ScanStatus.ERROR
             self.completed_at = datetime.now(timezone.utc)
-            print(f"[Orchestrator] Scan failed with error: {e}")
+            logger.error("Scan failed with error: %s", e)
             raise
         finally:
             await self._save_state()
@@ -262,7 +265,7 @@ class ScanOrchestrator:
             for (queued_task, _), result in zip(tasks, results):
                 if isinstance(result, Exception):
                     self.task_queue.complete(queued_task, str(result))
-                    print(f"[Orchestrator] Agent execution error: {result}")
+                    logger.error("Agent execution error: %s", result)
                     continue
 
                 self.task_queue.complete(queued_task)
@@ -299,7 +302,7 @@ class ScanOrchestrator:
                 agent.park()
         self.status = ScanStatus.PAUSED
         await self._save_state()
-        print("[Orchestrator] Scan paused")
+        logger.info("Scan paused")
 
     async def resume(self) -> None:
         """Resume a paused scan."""
@@ -309,7 +312,7 @@ class ScanOrchestrator:
             if agent.status == AgentStatus.PARKED:
                 agent.resume()
         self.status = ScanStatus.RUNNING
-        print("[Orchestrator] Scan resumed")
+        logger.info("Scan resumed")
 
     async def stop(self) -> None:
         """Stop the scan gracefully."""
@@ -321,7 +324,7 @@ class ScanOrchestrator:
         self.status = ScanStatus.CANCELLED
         self.completed_at = datetime.now(timezone.utc)
         await self._save_state()
-        print("[Orchestrator] Scan stopped")
+        logger.info("Scan stopped")
 
     async def _save_state(self) -> None:
         """Persist current scan state to disk."""

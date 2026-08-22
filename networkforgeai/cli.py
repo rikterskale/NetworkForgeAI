@@ -28,7 +28,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--mode", choices=["strict", "moderate", "lenient"], default="strict")
     parser.add_argument(
-        "--tool", choices=["nmap", "masscan", "nikto", "owasp-zap"], help="Run one tool"
+        "--tool",
+        choices=sorted(get_available_tools()),
+        metavar="TOOL",
+        help="Run one tool (see --list-tools for the full set)",
     )
     parser.add_argument(
         "--dry-run", action="store_true", help="Build commands without executing them"
@@ -62,6 +65,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from .observability import configure_logging
+
+    configure_logging()
     args = build_parser().parse_args(argv)
     if args.list_tools:
         for name, tool_class in get_available_tools().items():

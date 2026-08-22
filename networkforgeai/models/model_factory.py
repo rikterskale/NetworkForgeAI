@@ -8,10 +8,13 @@ Provides:
 - Configuration from environment variables
 """
 
+import logging
 import os
 from typing import Any, Dict, Optional, Type, cast
 
 from .base_adapter import BaseAdapter, ModelConfig, ModelProvider
+
+logger = logging.getLogger(__name__)
 
 
 class ModelFactory:
@@ -238,12 +241,12 @@ class ModelFactory:
                     asyncio.set_event_loop(loop)
 
                 if loop.run_until_complete(adapter.connect()):
-                    print(f"Successfully connected to {provider}")
+                    logger.info("Successfully connected to %s", provider)
                     return adapter
 
             except Exception as e:
                 last_error = e
-                print(f"Failed to connect to {provider}: {e}")
+                logger.warning("Failed to connect to %s: %s", provider, e)
                 continue
 
         raise ValueError(f"All providers failed. Last error: {last_error}")

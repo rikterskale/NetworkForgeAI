@@ -5,7 +5,16 @@ from pathlib import Path
 
 import pytest
 
-from networkforgeai.cli import main
+from networkforgeai.cli import build_parser, main
+from networkforgeai.tools import get_available_tools
+
+
+def test_parser_exposes_all_registered_tools():
+    parser = build_parser()
+    tool_action = next(a for a in parser._actions if a.dest == "tool")
+    assert set(tool_action.choices) == set(get_available_tools())
+    # Previously-hidden high-risk tools are now selectable.
+    assert {"sqlmap", "hydra", "metasploit"} <= set(tool_action.choices)
 
 
 def test_list_tools(capsys):

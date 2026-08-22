@@ -7,12 +7,15 @@ must pass through this gateway for explicit human approval.
 
 import asyncio
 import json
+import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -167,8 +170,8 @@ class ApprovalGateway:
         for callback in self.callbacks.values():
             try:
                 await callback(request)
-            except Exception as e:
-                print(f"Callback error: {e}")
+            except Exception:
+                logger.exception("Approval callback failed")
 
         # Check auto-approval rules
         if self._should_auto_approve(risk_level):
@@ -209,8 +212,8 @@ class ApprovalGateway:
         for callback in self.callbacks.values():
             try:
                 await callback(request)
-            except Exception as e:
-                print(f"Callback error: {e}")
+            except Exception:
+                logger.exception("Approval callback failed")
 
         return True
 
@@ -234,8 +237,8 @@ class ApprovalGateway:
         for callback in self.callbacks.values():
             try:
                 await callback(request)
-            except Exception as e:
-                print(f"Callback error: {e}")
+            except Exception:
+                logger.exception("Approval callback failed")
 
         return True
 

@@ -32,6 +32,9 @@ from .operator_page import OPERATOR_PAGE
 def create_app(orchestrator: ScanOrchestrator | None = None) -> FastAPI:
     if FastAPI is None:
         raise RuntimeError("FastAPI is required to run the dashboard")
+    from ..observability import configure_logging
+
+    configure_logging()
     app = FastAPI(title="NetworkForgeAI Dashboard")
     report_dir = Path(os.getenv("REPORT_OUTPUT_DIR", "./reports"))
     expected_token = os.getenv("DASHBOARD_AUTH_TOKEN", "")

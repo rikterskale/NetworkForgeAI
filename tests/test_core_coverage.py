@@ -120,6 +120,16 @@ def test_settings_defaults_and_safety_validation():
         Settings(
             target_scope="example.com", dashboard_auth_token="changeme"
         ).validate_security_config()
+    # Any shipped placeholder token is rejected, not just "changeme".
+    for placeholder in ("change_this_secure_random_token", "your_token_here", "replace-me"):
+        with pytest.raises(ValueError, match="DASHBOARD_AUTH_TOKEN"):
+            Settings(
+                target_scope="example.com", dashboard_auth_token=placeholder
+            ).validate_security_config()
+    # A real token passes.
+    assert Settings(
+        target_scope="example.com", dashboard_auth_token="s3cure-random-value-42"
+    ).validate_security_config()
 
 
 def test_knowledge_base_copies_and_merges_lists():

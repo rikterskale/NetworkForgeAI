@@ -128,12 +128,23 @@ class Settings(BaseSettings):
             )
         return True
 
+    #: Substrings that mark an unedited placeholder dashboard token.
+    _PLACEHOLDER_TOKEN_MARKERS = ("change", "your_", "replace", "example", "placeholder")
+
     def validate_security_config(self) -> bool:
-        """Reject unsafe production defaults before starting a scan."""
+        """Reject unsafe production defaults before starting a scan.
+
+        An empty token is allowed (the dashboard then denies all requests, which
+        is fail-closed); a non-empty token that still looks like a shipped
+        placeholder is rejected so it cannot be deployed by accident.
+        """
         if not self.parsed_target_scope:
             raise ValueError("TARGET_SCOPE must contain at least one authorized target")
-        if self.dashboard_auth_token == "changeme":
-            raise ValueError("DASHBOARD_AUTH_TOKEN must be changed from the development default")
+        token = self.dashboard_auth_token.strip()
+        if token and any(marker in token.lower() for marker in self._PLACEHOLDER_TOKEN_MARKERS):
+            raise ValueError(
+                "DASHBOARD_AUTH_TOKEN must be changed from the development placeholder"
+            )
         return True
 
 
