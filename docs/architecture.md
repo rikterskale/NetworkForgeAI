@@ -63,7 +63,7 @@ Three independent layers, all fail-closed:
 |-------|-------------|
 | Scope | `ScopePolicy.contains()` gates every target before any action; exclusions win |
 | Approval | `ApprovalGateway` blocks HIGH/CRITICAL actions until a human decides; emergency stop cancels pending work and blocks new requests |
-| Sandbox | `SandboxRunner` runs commands in Docker with no network, dropped capabilities, and no-new-privileges; host execution requires explicit opt-in |
+| Sandbox | `SandboxRunner` runs commands in Docker locked down by default (`--network none`, `--cap-drop ALL`, no-new-privileges). Network egress and `NET_RAW`/`NET_ADMIN` are opt-in via `NETWORKFORGE_SANDBOX_NETWORK`/`_CAPS` (allowlisted, fail-closed). Host execution requires explicit opt-in |
 
 The gateway never auto-approves HIGH/CRITICAL risk regardless of mode. Tests in
 `tests/test_phase8_safety.py` enforce bypass prevention; treat changes there as

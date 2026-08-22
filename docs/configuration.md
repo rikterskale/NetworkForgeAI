@@ -108,6 +108,15 @@ scan, and agent surfaces; approval and steering endpoints reject it with 401.
 | `CI_MODE` | `false` | Pipeline mode |
 | `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` |
 | `NETWORKFORGE_SANDBOX_IMAGE` | empty | Approved Docker image for sandbox execution |
+| `NETWORKFORGE_SANDBOX_NETWORK` | `none` | `none`, `bridge`, or `host` — container network mode |
+| `NETWORKFORGE_SANDBOX_CAPS` | empty | comma-separated subset of `NET_RAW`, `NET_ADMIN` |
+
+The sandbox is locked down by default (`--network none`, `--cap-drop ALL`), which
+means tools cannot reach a target. Real scanning is opt-in: set
+`NETWORKFORGE_SANDBOX_NETWORK=bridge` to allow egress. TCP connect scans work at
+that point; raw-socket scans (e.g. nmap `-sS`) additionally need
+`NETWORKFORGE_SANDBOX_CAPS=NET_RAW`. Grant the narrowest network mode and
+capability set the engagement requires. Unrecognized values fail closed.
 
 `REPORT_FORMATS` must be valid JSON because it is a list setting:
 
