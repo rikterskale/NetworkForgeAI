@@ -81,6 +81,22 @@ def test_scan_detail_invalid_json_returns_500(env, client):
     assert client.get("/scans/bad", headers=AUTH).status_code == 500
 
 
+def test_dashboard_supports_pagination_and_finding_filters(env, client):
+    scan = env / "scan-filter"
+    scan.mkdir(parents=True)
+    (scan / "findings.json").write_text(
+        '[{"type":"xss","severity":"high","status":"validated"},'
+        '{"type":"open_port","severity":"low","status":"suspected"}]'
+    )
+    response = client.get(
+        "/scans/scan-filter/findings?severity=high&limit=1&offset=0", headers=AUTH
+    )
+    body = response.json()
+    assert body["count"] == 1
+    assert body["findings"][0]["type"] == "xss"
+    assert body["limit"] == 1
+
+
 def test_reject_missing_request_returns_409(env):
     from tests.test_dashboard_api import FakeOrchestrator
 

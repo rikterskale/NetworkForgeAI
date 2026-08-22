@@ -153,7 +153,7 @@ networkforgeai --list-tools
 networkforgeai --validate-config
 ```
 
-The tool list should show twelve integrations. Configuration validation requires
+The tool list should show the currently registered integrations. Configuration validation requires
 a non-empty `TARGET_SCOPE`; it does not scan anything.
 
 Run the local readiness checks:
@@ -200,6 +200,10 @@ docker image inspect "$NETWORKFORGE_SANDBOX_IMAGE"
 Then run a low-risk operation against an authorized target. Keep strict approval
 mode enabled and review the output before continuing. If the image is missing,
 NetworkForgeAI fails closed instead of silently executing on the host.
+
+The image must contain the selected binary at a known, reviewed version. The
+repository image is a development baseline and does not include every registered
+integration; maintain an approved image compatibility matrix for production.
 
 Do not use `--host-execution` in production. It disables Docker sandboxing and is
 provided only for explicitly authorized development environments.

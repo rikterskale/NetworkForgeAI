@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 
 from ..core.approval_gateway import ApprovalGateway, ApprovalStatus, RiskLevel
 from ..core.scope import ScopePolicy
+from ..observability import command_digest, redact_text, safe_command_string
 from ..sandbox.runner import SandboxRunner
 
 logger = logging.getLogger(__name__)
@@ -168,10 +169,11 @@ class BaseTool(ABC):
         if not self.validate_target(target):
             raise ValueError(f"Invalid or out-of-scope target: {target}")
 
+        if self._approval_required() and not self.dry_run and self.approval_gateway is None:
+            raise PermissionError(f"{self.name} requires an approval gateway")
+        command = self.build_command(target, options)
         if self._approval_required() and not self.dry_run:
-            if self.approval_gateway is None:
-                raise PermissionError(f"{self.name} requires an approval gateway")
-            request = self._run_approval_request(target, timeout)
+            request = self._run_approval_request(target, timeout, command_digest(command))
             if request.status != ApprovalStatus.APPROVED:
                 raise PermissionError(
                     f"{self.name} execution was not approved: {request.status.value}"
@@ -204,13 +206,16 @@ class BaseTool(ABC):
         if not self.validate_target(target):
             raise ValueError(f"Invalid or out-of-scope target: {target}")
 
+        if self._approval_required() and not self.dry_run and self.approval_gateway is None:
+            raise PermissionError(f"{self.name} requires an approval gateway")
+        command = self.build_command(target, options)
         if self._approval_required() and not self.dry_run:
-            if self.approval_gateway is None:
-                raise PermissionError(f"{self.name} requires an approval gateway")
+            gateway = self.approval_gateway
+            assert gateway is not None
             details: Dict[str, Any] = {"command_builder": self.name}
             if approval_details:
                 details.update(approval_details)
-            request = await self.approval_gateway.request_approval(
+            request = await gateway.request_approval(
                 agent_id=f"tool:{self.name}",
                 action_type=self.name,
                 description=f"Execute {self.name} against {target}",
@@ -218,8 +223,9 @@ class BaseTool(ABC):
                 risk_level=RiskLevel(self.risk_level.value),
                 details=details,
                 timeout_seconds=timeout,
+                command_digest=command_digest(command),
             )
-            final = await self.approval_gateway.wait_for_approval(request.id)
+            final = await gateway.wait_for_approval(request.id)
             if final.status != ApprovalStatus.APPROVED:
                 raise PermissionError(
                     f"{self.name} execution was not approved: {final.status.value}"
@@ -235,7 +241,7 @@ class BaseTool(ABC):
         Callers are responsible for approval enforcement before invoking this.
         """
         command = self.build_command(target, options)
-        command_str = " ".join(command)
+        command_str = safe_command_string(command)
 
         self.logger.info(f"Executing {self.name}: {command_str}")
 
@@ -269,8 +275,8 @@ class BaseTool(ABC):
                 tool_name=self.name,
                 command=command_str,
                 exit_code=result.returncode,
-                stdout=result.stdout,
-                stderr=result.stderr,
+                stdout=redact_text(result.stdout),
+                stderr=redact_text(result.stderr),
                 start_time=start_time,
                 end_time=end_time,
                 risk_level=self.risk_level,
@@ -284,7 +290,7 @@ class BaseTool(ABC):
             if result.returncode != 0:
                 self.logger.warning(f"{self.name} exited with code {result.returncode}")
                 if result.stderr:
-                    self.logger.error(f"stderr: {result.stderr}")
+                    self.logger.error("stderr: %s", redact_text(result.stderr))
 
             return tool_result
 
@@ -311,14 +317,14 @@ class BaseTool(ABC):
                 command=command_str,
                 exit_code=-1,
                 stdout="",
-                stderr=str(e),
+                stderr=redact_text(str(e)),
                 start_time=start_time,
                 end_time=end_time,
                 risk_level=self.risk_level,
                 category=self.category,
             )
 
-    def _run_approval_request(self, target: str, timeout: int) -> Any:
+    def _run_approval_request(self, target: str, timeout: int, digest: str) -> Any:
         """Run the async approval protocol from this synchronous tool boundary."""
         import asyncio
 
@@ -336,6 +342,7 @@ class BaseTool(ABC):
                 risk_level=RiskLevel(self.risk_level.value),
                 details={"command_builder": self.name},
                 timeout_seconds=timeout,
+                command_digest=digest,
             )
             return await gateway.wait_for_approval(request.id)
 

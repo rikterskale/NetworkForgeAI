@@ -15,6 +15,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from ..observability import bind_log_context
 from ..reporting import to_csv, to_json, to_pdf, to_sarif
 from .approval_gateway import ApprovalGateway, _as_utc
 from .base_agent import AgentState, AgentStatus, BaseAgent
@@ -38,6 +39,7 @@ class ScanStatus(Enum):
     RUNNING = "running"
     PAUSED = "paused"
     COMPLETED = "completed"
+    PARTIAL = "partial"
     ERROR = "error"
     CANCELLED = "cancelled"
 
@@ -112,6 +114,8 @@ class ScanOrchestrator:
         self.completed_at: Optional[datetime] = None
         self.save_dir = Path(config.save_dir) / self.scan_id
         self._stop_requested = False
+        self._phase_errors: list[dict[str, str]] = []
+        self._phase_semaphore = asyncio.Semaphore(max(1, config.max_agents))
 
     def register_agent(self, agent: BaseAgent) -> None:
         """Register an agent with the orchestrator."""
@@ -139,6 +143,7 @@ class ScanOrchestrator:
         if self.status not in {ScanStatus.PENDING, ScanStatus.PAUSED}:
             raise RuntimeError(f"Cannot start scan from status {self.status.value}")
         self.status = ScanStatus.RUNNING
+        bind_log_context(scan_id=self.scan_id)
         self.started_at = datetime.now(timezone.utc)
         for agent in self.agents.values():
             await self.message_bus.register(agent.id)
@@ -236,9 +241,15 @@ class ScanOrchestrator:
                     self.findings = list(deduplicated)
                     self.shared_context["findings"] = list(self.findings)
 
-            self.status = ScanStatus.COMPLETED
+            self.status = ScanStatus.PARTIAL if self._phase_errors else ScanStatus.COMPLETED
             self.completed_at = datetime.now(timezone.utc)
-            logger.info("Scan completed. Found %d findings.", len(self.findings))
+            logger.info(
+                "Scan %s finished with status %s. Found %d findings and %d phase errors.",
+                self.scan_id,
+                self.status.value,
+                len(self.findings),
+                len(self._phase_errors),
+            )
 
         except Exception as e:
             self.status = ScanStatus.ERROR
@@ -251,6 +262,7 @@ class ScanOrchestrator:
 
     async def _execute_phase(self, agents: list[BaseAgent], phase_name: str) -> None:
         """Execute a phase with multiple agents in parallel."""
+        bind_log_context(scan_id=self.scan_id)
         tasks = []
         for agent in agents:
             if agent.should_stop():
@@ -263,7 +275,13 @@ class ScanOrchestrator:
                 assigned_agent=agent.id,
             )
             await self.task_queue.put(queued_task)
-            task = asyncio.create_task(agent.execute(phase_name, self.shared_context))
+
+            async def run_limited(current_agent: BaseAgent = agent) -> Any:
+                bind_log_context(scan_id=self.scan_id, agent_id=current_agent.id)
+                async with self._phase_semaphore:
+                    return await current_agent.execute(phase_name, self.shared_context)
+
+            task = asyncio.create_task(run_limited())
             tasks.append((queued_task, task))
 
         if tasks:
@@ -273,7 +291,20 @@ class ScanOrchestrator:
             for (queued_task, _), result in zip(tasks, results):
                 if isinstance(result, Exception):
                     self.task_queue.complete(queued_task, str(result))
-                    logger.error("Agent execution error: %s", result)
+                    error = {
+                        "phase": phase_name,
+                        "agent_id": queued_task.assigned_agent or "",
+                        "error": str(result),
+                    }
+                    self._phase_errors.append(error)
+                    self.shared_context.setdefault("phase_errors", []).append(error)
+                    logger.error(
+                        "Agent execution error scan_id=%s phase=%s agent_id=%s: %s",
+                        self.scan_id,
+                        phase_name,
+                        queued_task.assigned_agent,
+                        result,
+                    )
                     continue
 
                 self.task_queue.complete(queued_task)
@@ -351,6 +382,8 @@ class ScanOrchestrator:
             "agent_count": len(self.agents),
             "finding_count": len(self.findings),
             "approval_log": self.approval_log,
+            "approval_requests": self.approval_gateway.snapshot(),
+            "phase_errors": self._phase_errors,
             "knowledge_base": await self.knowledge_base.snapshot(),
             "task_queue": self.task_queue.snapshot(),
             "agent_states": [self._agent_state_dict(agent) for agent in self.agents.values()],
@@ -495,6 +528,8 @@ class ScanOrchestrator:
         )
         orchestrator.shared_context = state["shared_context"]
         orchestrator.approval_log = state["approval_log"]
+        orchestrator._phase_errors = list(state.get("phase_errors", []))
+        orchestrator.approval_gateway.restore(state.get("approval_requests", []))
         await orchestrator.knowledge_base.restore(state.get("knowledge_base", {}))
 
         findings_file = save_dir / "findings.json"

@@ -20,8 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.1.0
         with:
           python-version: "3.11"
           cache: pip
@@ -44,15 +44,15 @@ jobs:
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.1.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev,runtime,llm]"
       - run: python -m pytest -q --cov=networkforgeai --cov-report=xml --cov-report=term-missing --cov-fail-under=90
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.6.2
         if: always()
         with:
           name: coverage-${{ matrix.python-version }}
@@ -63,12 +63,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.1.0
         with:
           python-version: "3.11"
       - run: python tools/ci_docs_audit.py --json | tee docs-audit.json
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.6.2
         with:
           name: documentation-audit
           path: docs-audit.json
@@ -79,8 +79,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.1.0
         with:
           python-version: "3.11"
       - run: python -m pip install -e ".[runtime]"
@@ -91,17 +91,37 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - run: docker compose config --quiet
       - run: docker build --tag networkforgeai:ci .
+      - run: docker run --rm --read-only networkforgeai:ci python -m networkforgeai.cli --version
+      - run: docker run --rm --read-only networkforgeai:ci python -m networkforgeai.cli --help
+
+  integration:
+    name: Container integration smoke
+    needs: [container]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.1.0
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: docker build --tag networkforgeai:integration .
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[dev,runtime]"
+      - run: python -m pytest -m integration -q
+        env:
+          NETWORKFORGE_SANDBOX_IMAGE: networkforgeai:integration
 
   package-install:
     name: Clean package install smoke test
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.1.0
         with:
           python-version: "3.11"
           cache: pip
@@ -124,19 +144,19 @@ jobs:
           DASHBOARD_AUTH_TOKEN: package-smoke-token
       - run: '"$RUNNER_TEMP/networkforgeai-venv/bin/networkforgeai" --target example.com --scope example.com --tool nmap --dry-run'
         working-directory: ${{ runner.temp }}
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.6.2
         with:
           name: networkforgeai-wheel
           path: dist/*.whl
 
   readiness:
     name: User readiness gate
-    needs: [quality, tests, documentation, container, package-install, findings-policy]
+    needs: [quality, tests, documentation, container, integration, package-install, findings-policy]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.1.0
         with:
           python-version: "3.11"
           cache: pip
@@ -144,7 +164,7 @@ jobs:
       - run: python -m pip install -e ".[dev,runtime,llm]"
       - run: python -m pip check
       - run: python tools/user_readiness.py --strict --json | tee user-readiness.json
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.6.2
         if: always()
         with:
           name: user-readiness

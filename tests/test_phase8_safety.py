@@ -43,6 +43,22 @@ def test_high_risk_tool_fails_closed_without_approval_gateway():
         tool.execute("example.com")
 
 
+def test_approval_request_preserves_command_digest():
+    async def scenario():
+        gateway = ApprovalGateway("manual")
+        request = await gateway.request_approval(
+            "agent",
+            "validate",
+            "safe test",
+            "example.com",
+            RiskLevel.HIGH,
+            command_digest="digest-123",
+        )
+        assert request.command_digest == "digest-123"
+
+    asyncio.run(scenario())
+
+
 def test_dry_run_is_safe_for_high_risk_tool(monkeypatch):
     tool = HighRiskTool(
         sandbox_mode=False,
@@ -94,5 +110,21 @@ def test_approval_gateway_handles_concurrent_low_risk_requests(tmp_path):
         assert len({request.id for request in requests}) == 25
         assert all(request.status is ApprovalStatus.APPROVED for request in requests)
         assert len(gateway.get_pending_requests()) == 0
+
+    asyncio.run(scenario())
+
+
+def test_approval_audit_log_is_hash_chained(tmp_path):
+    async def scenario():
+        path = tmp_path / "audit.jsonl"
+        gateway = ApprovalGateway("manual", path)
+        first = await gateway.request_approval("a", "x", "d", "t", RiskLevel.HIGH)
+        await gateway.reject(first.id, "operator", "no")
+        second = await gateway.request_approval("a", "x", "d", "t", RiskLevel.HIGH)
+        await gateway.reject(second.id, "operator", "no")
+        rows = [json.loads(line) for line in path.read_text().splitlines()]
+        assert len(rows) == 2
+        assert rows[0]["audit_previous_hash"] == ""
+        assert rows[1]["audit_previous_hash"] == rows[0]["audit_hash"]
 
     asyncio.run(scenario())

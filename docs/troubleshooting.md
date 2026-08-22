@@ -117,6 +117,26 @@ The Python integration is a command builder/parser. Install the binary in the
 approved sandbox image and confirm its version there. Do not install unreviewed
 offensive tooling directly on a production host.
 
+### Sandbox image and host architecture do not match
+
+Verify the image architecture and the tool versions before scanning:
+
+```bash
+docker image inspect "$NETWORKFORGE_SANDBOX_IMAGE" --format '{{.Architecture}}/{{.Os}}'
+docker run --rm "$NETWORKFORGE_SANDBOX_IMAGE" nmap --version
+```
+
+On Apple Silicon or another non-amd64 host, use an approved multi-architecture
+image or explicitly validate the required emulation policy. Do not silently
+replace the sandbox with host execution.
+
+### A scan completes with partial results
+
+The `partial` scan status means one or more agent phases failed while other
+phases produced results. Preserve `scan_state.json`, inspect its `phase_errors`
+entries, and rerun only after resolving the named tool, model, or sandbox issue.
+Treat the report as incomplete until every required phase is accounted for.
+
 ## Scope and approval problems
 
 ### A valid-looking target is denied

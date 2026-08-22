@@ -79,10 +79,21 @@ def create_app(orchestrator: ScanOrchestrator | None = None) -> FastAPI:
         return HTMLResponse(OPERATOR_PAGE)
 
     @app.get("/reports")
-    def reports(authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    def reports(
+        authorization: str | None = Header(default=None),
+        limit: int = 100,
+        offset: int = 0,
+    ) -> dict[str, Any]:
         authorize(authorization, required_role="viewer")
+        _page_bounds(limit, offset)
         report_dir.mkdir(parents=True, exist_ok=True)
-        return {"reports": _relative_files(report_dir)}
+        all_reports = _relative_files(report_dir)
+        return {
+            "reports": all_reports[offset : offset + limit],
+            "total": len(all_reports),
+            "limit": limit,
+            "offset": offset,
+        }
 
     @app.get("/reports/{report_path:path}")
     def report_detail(
@@ -101,8 +112,14 @@ def create_app(orchestrator: ScanOrchestrator | None = None) -> FastAPI:
         return {"path": report_path, "content": content}
 
     @app.get("/scans")
-    def scans(authorization: str | None = Header(default=None)) -> dict[str, Any]:
+    def scans(
+        authorization: str | None = Header(default=None),
+        limit: int = 100,
+        offset: int = 0,
+        status: str | None = None,
+    ) -> dict[str, Any]:
         authorize(authorization, required_role="viewer")
+        _page_bounds(limit, offset)
         entries = []
         for state_file in report_dir.glob("*/scan_state.json"):
             try:
@@ -117,7 +134,15 @@ def create_app(orchestrator: ScanOrchestrator | None = None) -> FastAPI:
                 )
             except (OSError, json.JSONDecodeError):
                 continue
-        return {"scans": sorted(entries, key=lambda item: item["scan_id"])}
+        all_scans = sorted(entries, key=lambda item: item["scan_id"])
+        if status:
+            all_scans = [item for item in all_scans if item["status"] == status]
+        return {
+            "scans": all_scans[offset : offset + limit],
+            "total": len(all_scans),
+            "limit": limit,
+            "offset": offset,
+        }
 
     @app.get("/scans/{scan_id}")
     def scan_detail(
@@ -135,9 +160,15 @@ def create_app(orchestrator: ScanOrchestrator | None = None) -> FastAPI:
 
     @app.get("/scans/{scan_id}/findings")
     def scan_findings(
-        scan_id: str, authorization: str | None = Header(default=None)
+        scan_id: str,
+        authorization: str | None = Header(default=None),
+        limit: int = 100,
+        offset: int = 0,
+        severity: str | None = None,
+        status: str | None = None,
     ) -> dict[str, Any]:
         authorize(authorization, required_role="viewer")
+        _page_bounds(limit, offset)
         findings_file = _safe_child(report_dir, f"{scan_id}/findings.json")
         if not findings_file.is_file():
             raise HTTPException(status_code=404, detail="Findings not found")
@@ -145,7 +176,17 @@ def create_app(orchestrator: ScanOrchestrator | None = None) -> FastAPI:
             findings: list[dict[str, Any]] = json.loads(findings_file.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             raise HTTPException(status_code=500, detail="Invalid findings file") from exc
-        return {"scan_id": scan_id, "count": len(findings), "findings": findings}
+        if severity:
+            findings = [item for item in findings if item.get("severity") == severity]
+        if status:
+            findings = [item for item in findings if item.get("status") == status]
+        return {
+            "scan_id": scan_id,
+            "count": len(findings),
+            "findings": findings[offset : offset + limit],
+            "limit": limit,
+            "offset": offset,
+        }
 
     @app.get("/agents")
     def agents(authorization: str | None = Header(default=None)) -> dict[str, Any]:
@@ -249,6 +290,13 @@ def _safe_child(root: Path, relative_path: str) -> Path:
     if candidate != root and root not in candidate.parents:
         raise HTTPException(status_code=400, detail="Path escapes report directory")
     return candidate
+
+
+def _page_bounds(limit: int, offset: int) -> None:
+    if limit < 1 or limit > 1000 or offset < 0:
+        raise HTTPException(
+            status_code=422, detail="limit must be 1..1000 and offset must be non-negative"
+        )
 
 
 def _relative_files(root: Path) -> list[str]:

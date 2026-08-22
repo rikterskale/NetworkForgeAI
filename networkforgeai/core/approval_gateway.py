@@ -6,6 +6,7 @@ must pass through this gateway for explicit human approval.
 """
 
 import asyncio
+import hashlib
 import json
 import logging
 import uuid
@@ -14,6 +15,8 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, Optional
+
+from ..observability import redact_mapping
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +61,7 @@ class ApprovalRequest:
     approved_at: Optional[datetime] = None
     rejection_reason: Optional[str] = None
     response_data: Optional[Dict[str, Any]] = None
+    command_digest: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -67,14 +71,15 @@ class ApprovalRequest:
             "description": self.description,
             "target": self.target,
             "risk_level": self.risk_level.value,
-            "details": self.details,
+            "details": redact_mapping(self.details),
             "created_at": self.created_at.isoformat(),
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
             "status": self.status.value,
             "approver_id": self.approver_id,
             "approved_at": self.approved_at.isoformat() if self.approved_at else None,
             "rejection_reason": self.rejection_reason,
-            "response_data": self.response_data,
+            "response_data": redact_mapping(self.response_data) if self.response_data else None,
+            "command_digest": self.command_digest,
         }
 
     @classmethod
@@ -98,6 +103,7 @@ class ApprovalRequest:
             else None,
             rejection_reason=data.get("rejection_reason"),
             response_data=data.get("response_data"),
+            command_digest=data.get("command_digest"),
         )
 
 
@@ -130,6 +136,7 @@ class ApprovalGateway:
         risk_level: RiskLevel,
         details: Optional[Dict[str, Any]] = None,
         timeout_seconds: int = 300,
+        command_digest: Optional[str] = None,
     ) -> ApprovalRequest:
         """
         Submit a request for human approval.
@@ -160,6 +167,7 @@ class ApprovalGateway:
             target=target,
             risk_level=risk_level,
             details=details or {},
+            command_digest=command_digest,
             expires_at=datetime.now(timezone.utc) + timedelta(seconds=timeout_seconds),
         )
 
@@ -285,6 +293,18 @@ class ApprovalGateway:
         """Get a specific request by ID."""
         return self.requests.get(request_id)
 
+    def snapshot(self) -> list[dict[str, Any]]:
+        """Serialize in-memory requests for crash recovery."""
+        return [request.to_dict() for request in self.requests.values()]
+
+    def restore(self, requests: list[dict[str, Any]]) -> None:
+        """Restore persisted requests without re-emitting callbacks."""
+        self.requests = {
+            item["id"]: ApprovalRequest.from_dict(item)
+            for item in requests
+            if isinstance(item, dict) and item.get("id")
+        }
+
     def clear_expired(self) -> None:
         """Remove expired requests from memory."""
         now = datetime.now(timezone.utc)
@@ -321,5 +341,16 @@ class ApprovalGateway:
         if not self.audit_log_path:
             return
         self.audit_log_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = request.to_dict()
+        previous = ""
+        if self.audit_log_path.exists():
+            try:
+                last = self.audit_log_path.read_text(encoding="utf-8").splitlines()[-1]
+                previous = str(json.loads(last).get("audit_hash", ""))
+            except (OSError, IndexError, json.JSONDecodeError):
+                previous = ""
+        payload["audit_previous_hash"] = previous
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        payload["audit_hash"] = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
         with self.audit_log_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(request.to_dict()) + "\n")
+            handle.write(json.dumps(payload, sort_keys=True) + "\n")

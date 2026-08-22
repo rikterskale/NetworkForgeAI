@@ -92,12 +92,14 @@ All interfaces consume the same disk-backed evidence:
 
 Scan state is written after every phase transition and approval event
 (`_save_state`). `ScanOrchestrator.from_state(scan_id)` restores a scan from
-disk, including knowledge-base snapshot and task queue. Audit trails are
-append-only JSONL (`approval_audit.jsonl`) and must be preserved.
+disk, including knowledge-base snapshot, task queue, terminal approval requests,
+and `phase_errors`. Audit trails are append-only, hash-chained JSONL
+(`approval_audit.jsonl`) and must be preserved.
 
 ## Typing and quality gates
 
-The entire package passes `mypy --strict` (enforced in CI). Coverage floor is
-90% and nothing is omitted — the LLM SDK adapters are unit-tested with fake
-clients so no module is excluded from accounting. See
+CI runs `mypy --strict networkforgeai`. The maintained typed core, adapter,
+agent, and dashboard surfaces are expected to remain clean; any temporary
+exclusions must be explicit in configuration and tracked as debt. Coverage
+floor is 90% and the LLM SDK adapters are unit-tested with fake clients. See
 [CONTRIBUTING.md](../CONTRIBUTING.md) for the full gate.

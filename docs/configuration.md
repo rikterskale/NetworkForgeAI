@@ -107,6 +107,7 @@ scan, and agent surfaces; approval and steering endpoints reject it with 401.
 | `MAX_CONCURRENT_AGENTS` | `5` | Agent concurrency, from 1 to 20 |
 | `CI_MODE` | `false` | Pipeline mode |
 | `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL` |
+| `LOG_FORMAT` | `text` | `text` or `json`; JSON includes correlation fields for log ingestion |
 | `NETWORKFORGE_SANDBOX_IMAGE` | empty | Approved Docker image for sandbox execution |
 | `NETWORKFORGE_SANDBOX_NETWORK` | `none` | `none`, `bridge`, or `host` — container network mode |
 | `NETWORKFORGE_SANDBOX_CAPS` | empty | comma-separated subset of `NET_RAW`, `NET_ADMIN` |
@@ -191,6 +192,7 @@ DASHBOARD_PORT=8080
 DASHBOARD_AUTH_TOKEN=replace-with-a-random-token
 REPORT_OUTPUT_DIR=./reports
 LOG_LEVEL=INFO
+LOG_FORMAT=text
 ```
 
 ## Changes requiring review

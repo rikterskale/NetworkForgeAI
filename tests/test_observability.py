@@ -39,3 +39,11 @@ def test_idempotent_without_force():
 
 def test_get_logger_returns_named_logger():
     assert obs.get_logger("x.y").name == "x.y"
+
+
+def test_redacts_credentials_and_command_digests_are_stable():
+    assert "secret-value" not in obs.redact_text("password=secret-value")
+    assert "secret-value" not in obs.redact_text('Bearer secret-value {"token":"secret-value"}')
+    rendered = obs.safe_command_string(["scanner", "--password", "secret-value", "target"])
+    assert "secret-value" not in rendered
+    assert obs.command_digest(["scanner", "target"]) == obs.command_digest(["scanner", "target"])

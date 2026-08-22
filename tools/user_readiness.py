@@ -216,7 +216,9 @@ with TemporaryDirectory() as directory:
     else:
         raise AssertionError("unauthenticated dashboard request was accepted")
     authorization = "Bearer readiness-token"
-    assert routes["/reports"](authorization) == {"reports": ["scan-1/findings.json", "scan-1/scan_state.json"]}
+    report_listing = routes["/reports"](authorization)
+    assert set(report_listing["reports"]) == {"scan-1/findings.json", "scan-1/scan_state.json"}
+    assert report_listing["total"] == 2
     assert routes["/reports/{report_path:path}"]("scan-1/findings.json", authorization)["content"] == []
     assert routes["/scans"](authorization)["scans"][0]["scan_id"] == "scan-1"
 """

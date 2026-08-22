@@ -12,9 +12,9 @@ The production CI workflow runs:
    command.
 8. The strict user-readiness gate.
 
-The strict MyPy gate currently covers the maintained typed core surfaces. Legacy
-LLM adapters, agent implementations, and dashboard modules remain outside the
-gate while they are incrementally typed.
+The strict MyPy gate runs over `networkforgeai`. The maintained typed core,
+adapter, agent, and dashboard surfaces are expected to remain clean; any
+temporary exclusions must be explicit in configuration and tracked as debt.
 
 The current minimum coverage gate is 90%. It is enforced identically in CI and
 the local `make test` target.

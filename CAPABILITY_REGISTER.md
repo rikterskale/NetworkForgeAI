@@ -203,7 +203,7 @@
 ### Web Dashboard
 | ID | Feature | Status | Tech Stack |
 |----|---------|--------|------------|
-| GUI-001 | React frontend application | ✅ | Dependency-free single-file operator console at `GET /` (Option A; no build chain) |
+| GUI-001 | Web operator console | ✅ | Dependency-free single-file operator console at `GET /` (no React build chain) |
 | GUI-002 | Live scan monitoring | ✅ | `/agents` + operator console polling |
 | GUI-003 | Agent graph visualization | ✅ | Dependency-free SVG graph (scan node + per-agent status nodes) in the operator console |
 | GUI-004 | Approval workflow UI | ✅ | Approval queue with approve/reject in console; audited via gateway |

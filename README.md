@@ -44,7 +44,7 @@ NetworkForgeAI provides AI-assisted security testing with:
 
 ### Reporting
 - Compliance-ready penetration test reports
-- Findings in Markdown, JSON, CSV, and SARIF formats
+- Findings in Markdown, JSON, CSV, SARIF, PDF, and HTML formats
 - Complete reproduction steps for validated vulnerabilities
 - Email delivery and sharing capabilities
 
@@ -224,15 +224,16 @@ jobs:
   networkforge-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Run NetworkForgeAI Scan
         run: |
-          docker-compose run networkforgeai \
-            --target ${{ github.event.repository.url }} \
-            --mode sast-dast \
-            --ci-mode
+          docker compose run --rm networkforgeai \
+            --target example.com \
+            --scope example.com \
+            --tool nmap \
+            --dry-run
       - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: reports/latest.sarif
 ```
