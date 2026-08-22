@@ -47,9 +47,9 @@ make ci        # lint + test + typecheck + security + docs + readiness
 - Markers are strict: `integration` (needs a local service/binary) and
   `live_provider` (needs LLM credentials). Register new markers in
   `pyproject.toml` before using them.
-- Coverage omits only the three provider SDK adapters (they need live
-  credentials); the rest of the package — including `cli.py` and the dashboard —
-  is measured against the 90% floor.
+- Coverage measures the entire `networkforgeai` package against the 90% floor —
+  nothing is omitted. The LLM SDK adapters are unit-tested with fake clients
+  (`tests/test_model_adapters.py`); a live_provider smoke layer is optional.
 - New safety-relevant behavior needs a fail-closed test (prove it refuses to
   act without approval/scope/sandbox).
 

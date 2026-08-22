@@ -98,6 +98,6 @@ append-only JSONL (`approval_audit.jsonl`) and must be preserved.
 ## Typing and quality gates
 
 The entire package passes `mypy --strict` (enforced in CI). Coverage floor is
-90%; only the third-party LLM SDK adapters are omitted from coverage accounting
-(they require live provider credentials). See
+90% and nothing is omitted — the LLM SDK adapters are unit-tested with fake
+clients so no module is excluded from accounting. See
 [CONTRIBUTING.md](../CONTRIBUTING.md) for the full gate.
