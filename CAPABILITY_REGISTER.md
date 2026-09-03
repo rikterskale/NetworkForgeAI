@@ -203,6 +203,7 @@ production-hardened. See [docs/maturity.md](docs/maturity.md).
 | CLI-005 | Results viewer | ✅ | Safe report listing and viewing |
 | CLI-006 | Configuration manager | ✅ | Safety configuration validation |
 | CLI-007 | Help & documentation | ✅ | Argparse help and interface guide |
+| CLI-008 | Doctor / readiness diagnostics | ✅ | `--doctor` runs `networkforgeai.doctor.Doctor` with 4-state checks (passed/failed/skipped/unverified), remediation text on every failure, `--json` structured output, `--strict` promotes skipped/unverified to failure for CI gates; runs before Settings() load so a broken config is diagnosed rather than raising |
 
 ### Web Dashboard
 | ID | Feature | Status | Tech Stack |

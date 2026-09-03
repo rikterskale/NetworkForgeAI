@@ -6,6 +6,28 @@ for high-risk operations, human approval.
 
 ## [Unreleased]
 
+### User readiness — doctor command
+
+- **`networkforgeai --doctor`** (CLI-008): comprehensive readiness diagnostics
+  running before `Settings()` load, so a broken configuration is diagnosed
+  rather than raising. Checks Python version, platform, package installation,
+  CLI entry point, Docker daemon, sandbox image presence + digest, disk space,
+  available memory (Linux `/proc/meminfo` when present), report-directory
+  writability, LLM provider SDKs (OpenAI, Anthropic, `google.genai`, LiteLLM),
+  and runtime configuration validity (via `Settings.validate_runtime`).
+- Each check reports one of four states — **passed / failed / skipped /
+  unverified** — and every non-passed check carries a `remediation` line the
+  operator can act on directly.
+- `--json` emits the full report as structured JSON (schema_version 1, summary
+  counts, per-check `{name, status, detail, remediation}`); default is a
+  human-readable text renderer that ends with `READY` / `NOT READY`.
+- `--strict` promotes `skipped` and `unverified` to failure so a CI readiness
+  gate cannot pass by omitting coverage.
+- Secrets are never included in `detail` or `remediation` — only structural
+  data (presence, version string, digest prefix). Subprocess calls (`docker
+  info`, `docker image inspect`) are dependency-injected via the `runner`
+  field on `Doctor` so every branch is deterministically unit-tested.
+
 ### Offensive depth (vendor-grade)
 
 - **Correlation & scoring pipeline** (`core/enrichment`): deduplicates findings,
