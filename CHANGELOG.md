@@ -6,6 +6,20 @@ for high-risk operations, human approval.
 
 ## [Unreleased]
 
+### Configuration precedence — locked down
+
+- **`tests/test_config_precedence.py`** (28 tests): explicit coverage that every
+  runtime knob honours the three-layer rule **CLI flag > env var > default**.
+  Exercised for `target_scope`, `report_output_dir`, `approval_mode`,
+  `session_timeout_minutes`, `report_formats`, `ci_mode`,
+  `block_destructive_actions`, `require_justification_for_exploitation`,
+  `max_concurrent_agents`, `log_level`, and `log_format`.
+- The suite also locks in three safety-critical defaults so a future refactor
+  cannot silently soften them: approval defaults to **strict**, destructive
+  actions default to **blocked**, exploitation justification is **required**.
+- Corresponds to fix-list item 1 (Canonical runtime configuration model →
+  "Add configuration-precedence tests") in `NETWORKFORGEAI_10_10_FIX_LIST.txt`.
+
 ### User readiness — auto-preflight before every real scan
 
 - **Automatic readiness preflight** (CLI-009): every real scan now runs
