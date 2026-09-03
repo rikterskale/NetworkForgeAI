@@ -6,6 +6,28 @@ for high-risk operations, human approval.
 
 ## [Unreleased]
 
+### Troubleshooting — diagnostic support bundle (CLI-010)
+
+- **`networkforgeai --diagnose-bundle`**: writes
+  `<output-dir>/diagnostic_bundle_<timestamp>.zip` containing
+  `manifest.json`, `versions.json`, `config.json` (secret-safe;
+  `Settings.diagnostics` output), `doctor.json` (full `Doctor` run),
+  `tools.json` (registered tool inventory with risk/category), and
+  `audit_tail.jsonl` (last 200 lines of the approval audit log).
+- Runs before `Settings()` load so a broken config is captured in the
+  bundle rather than short-circuiting it. Secrets (dashboard token,
+  API keys) never appear in any bundle entry — regression-tested with
+  explicit substring assertions.
+- New module `networkforgeai/support_bundle.py` with a `SupportBundle`
+  dataclass, per-collector functions, and a `build_default_bundle()`
+  factory so future channels (e.g. a `/diagnose-bundle` dashboard
+  endpoint) can reuse the same content set.
+- 18 new tests covering every collector's happy path + defensive
+  fallbacks (missing/unreadable audit log, broken Settings), the ZIP
+  layout, manifest byte-count, secret redaction, and the CLI wiring.
+- Corresponds to the "diagnostic bundle command" bullet under
+  `TROUBLESHOOTING — 10/10` in `NETWORKFORGEAI_10_10_FIX_LIST.txt`.
+
 ### Configuration precedence — locked down
 
 - **`tests/test_config_precedence.py`** (28 tests): explicit coverage that every

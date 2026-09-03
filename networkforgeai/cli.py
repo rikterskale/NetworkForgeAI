@@ -147,6 +147,15 @@ def build_parser() -> argparse.ArgumentParser:
             "--dry-run already skips it."
         ),
     )
+    parser.add_argument(
+        "--diagnose-bundle",
+        action="store_true",
+        help=(
+            "Write a diagnostic support-bundle ZIP (versions, safe config, doctor "
+            "output, tool inventory, audit-log tail; excludes secrets and target "
+            "evidence) to <output-dir>/diagnostic_bundle_<timestamp>.zip"
+        ),
+    )
     parser.add_argument("--version", action="version", version=f"NetworkForgeAI {__version__}")
     return parser
 
@@ -162,6 +171,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.doctor:
         return _run_doctor(args)
+    if args.diagnose_bundle:
+        return _run_diagnose_bundle(args)
     try:
         from .config import Settings
 
@@ -524,6 +535,25 @@ def _run_doctor(args: argparse.Namespace) -> int:
     else:
         print(doctor.as_text())
     return 0 if doctor.ok else 2
+
+
+def _run_diagnose_bundle(args: argparse.Namespace) -> int:
+    """Handle ``networkforgeai --diagnose-bundle``.
+
+    Runs before ``Settings()`` load so a broken configuration is
+    collected in the bundle rather than short-circuiting it.
+    """
+
+    from .support_bundle import build_default_bundle, default_destination
+
+    report_directory = Path(
+        args.output_dir or os.getenv("REPORT_OUTPUT_DIR") or "./reports"
+    ).expanduser()
+    bundle = build_default_bundle(report_directory=report_directory)
+    destination = default_destination(report_directory)
+    written = bundle.write_zip(destination)
+    print(f"wrote support bundle: {written}")
+    return 0
 
 
 def _auto_preflight(output_dir: str) -> int:
