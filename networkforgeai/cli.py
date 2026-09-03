@@ -138,6 +138,15 @@ def build_parser() -> argparse.ArgumentParser:
             "(recommended for CI readiness gates)"
         ),
     )
+    parser.add_argument(
+        "--skip-preflight",
+        action="store_true",
+        help=(
+            "Skip the automatic readiness preflight that runs before every real scan. "
+            "Use only when a check is known to misreport on the current host; "
+            "--dry-run already skips it."
+        ),
+    )
     parser.add_argument("--version", action="version", version=f"NetworkForgeAI {__version__}")
     return parser
 
@@ -212,6 +221,17 @@ def main(argv: list[str] | None = None) -> int:
     policy = ScopePolicy(scope, args.exclude)
     if not policy.contains(args.target):
         raise SystemExit(f"Target is outside the explicitly supplied scope: {args.target}")
+
+    # Automatic readiness preflight before every real scan. Skipped for
+    # --dry-run (no execution), the explicit --preflight command (that
+    # branch is the check itself), and the operator escape hatch
+    # --skip-preflight. A FAILED check aborts with exit 2; SKIPPED /
+    # UNVERIFIED are logged but do not block (use --doctor --strict to
+    # audit them explicitly).
+    if not args.dry_run and not args.preflight and not args.skip_preflight:
+        rc = _auto_preflight(output_dir)
+        if rc != 0:
+            return rc
 
     if args.preflight:
         names = [args.tool] if args.tool else list(get_available_tools())
@@ -504,6 +524,48 @@ def _run_doctor(args: argparse.Namespace) -> int:
     else:
         print(doctor.as_text())
     return 0 if doctor.ok else 2
+
+
+def _auto_preflight(output_dir: str) -> int:
+    """Run the doctor before a real scan.
+
+    Returns 0 to proceed. Non-zero aborts. Only ``FAILED`` checks
+    block; ``SKIPPED`` / ``UNVERIFIED`` are logged but pass, so the
+    scan can still run in a partially-instrumented environment
+    (e.g. host execution without Docker). An operator who needs to
+    treat those as errors runs ``--doctor --strict`` explicitly.
+    """
+
+    from .doctor import CheckStatus, Doctor
+
+    doctor = Doctor(strict=False)
+    doctor.run(report_directory=output_dir)
+    failed = [c for c in doctor.checks if c.status is CheckStatus.FAILED]
+    summary = doctor.summary
+    if failed:
+        print("preflight FAILED — aborting scan. Failed checks:")
+        for check in failed:
+            print(f"  [FAIL] {check.name}: {check.detail}")
+            if check.remediation:
+                print(f"         -> {check.remediation}")
+        print(
+            f"summary: {summary['passed']} passed, {summary['failed']} failed, "
+            f"{summary['skipped']} skipped, {summary['unverified']} unverified"
+        )
+        print(
+            "Re-run diagnostics with `networkforgeai --doctor` or bypass with "
+            "`--skip-preflight` if a check is misreporting on this host."
+        )
+        return 2
+    non_pass = summary["skipped"] + summary["unverified"]
+    if non_pass:
+        print(
+            f"preflight ok ({summary['passed']} passed, {summary['skipped']} skipped, "
+            f"{summary['unverified']} unverified — run `--doctor --strict` to audit)"
+        )
+    else:
+        print(f"preflight ok ({summary['passed']} passed)")
+    return 0
 
 
 if __name__ == "__main__":

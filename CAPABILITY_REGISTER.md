@@ -204,6 +204,7 @@ production-hardened. See [docs/maturity.md](docs/maturity.md).
 | CLI-006 | Configuration manager | ✅ | Safety configuration validation |
 | CLI-007 | Help & documentation | ✅ | Argparse help and interface guide |
 | CLI-008 | Doctor / readiness diagnostics | ✅ | `--doctor` runs `networkforgeai.doctor.Doctor` with 4-state checks (passed/failed/skipped/unverified), remediation text on every failure, `--json` structured output, `--strict` promotes skipped/unverified to failure for CI gates; runs before Settings() load so a broken config is diagnosed rather than raising |
+| CLI-009 | Auto-preflight before every real scan | ✅ | The doctor runs automatically before any scan (single-tool or orchestrated); a FAILED check aborts with exit 2 and prints remediations. `--dry-run` and the explicit `--preflight` command bypass it; `--skip-preflight` is the operator escape hatch for misreporting checks |
 
 ### Web Dashboard
 | ID | Feature | Status | Tech Stack |

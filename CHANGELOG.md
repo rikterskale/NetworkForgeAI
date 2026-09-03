@@ -6,6 +6,22 @@ for high-risk operations, human approval.
 
 ## [Unreleased]
 
+### User readiness — auto-preflight before every real scan
+
+- **Automatic readiness preflight** (CLI-009): every real scan now runs
+  `networkforgeai.doctor.Doctor` before touching a tool. A `FAILED` check
+  aborts with exit 2 and prints the failing check + its remediation line so
+  the operator can act without a second command. `SKIPPED` / `UNVERIFIED`
+  checks are logged in a one-liner but do not block (use `--doctor --strict`
+  to audit them).
+- Bypass paths: `--dry-run` (no execution), the explicit `--preflight`
+  command (that branch is itself a check), and the new
+  `--skip-preflight` escape hatch for hosts where a check is known to
+  misreport.
+- Exit codes: `0` on success (with a terse `preflight ok (N passed)`
+  line so operators know it ran), `2` on FAILED. Consistent with
+  `--doctor` and `--diagnose-config`.
+
 ### User readiness — doctor command
 
 - **`networkforgeai --doctor`** (CLI-008): comprehensive readiness diagnostics
