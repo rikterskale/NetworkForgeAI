@@ -14,7 +14,8 @@ usage: networkforgeai [-h] [--target TARGET] [--scope SCOPE]
                       [--provider {openai,anthropic,google,local,litellm}]
                       [--list-tools] [--list-reports] [--show-report PATH]
                       [--validate-config] [--diagnose-config] [--preflight]
-                      [--doctor] [--json] [--strict] [--version]
+                      [--doctor] [--json] [--strict] [--skip-preflight]
+                      [--version]
 
 NetworkForgeAI authorized security validation
 
@@ -59,6 +60,10 @@ options:
                         readable text
   --strict              With --doctor, treat 'skipped' and 'unverified' checks
                         as failure (recommended for CI readiness gates)
+  --skip-preflight      Skip the automatic readiness preflight that runs
+                        before every real scan. Use only when a check is known
+                        to misreport on the current host; --dry-run already
+                        skips it.
   --version             show program's version number and exit
 ```
 
