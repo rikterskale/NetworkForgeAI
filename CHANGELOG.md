@@ -6,6 +6,23 @@ for high-risk operations, human approval.
 
 ## [Unreleased]
 
+### Documentation — pentest lifecycle roadmap
+
+- **`docs/pentest-lifecycle-roadmap.md`**: new roadmap mapping the
+  classical five-phase network-pentest model (planning &
+  reconnaissance, scanning & enumeration, exploitation,
+  post-exploitation, reporting & analysis) onto the existing
+  `ScanOrchestrator` phases. For every phase: what is delivered
+  (with capability IDs), the outstanding gaps, and a sequenced
+  implementation plan.
+- The document lists 21 PR-sized slices ordered by leverage +
+  dependency, plus a per-phase maturity target using the ladder in
+  `docs/maturity.md`. Cross-cutting safety invariants (scope,
+  approval, honest-output, audit, sandbox) are stated once and
+  inherited by every phase; the roadmap explicitly refuses to
+  weaken any of them.
+- No source changes.
+
 ### Troubleshooting — diagnostic support bundle (CLI-010)
 
 - **`networkforgeai --diagnose-bundle`**: writes
