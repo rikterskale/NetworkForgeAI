@@ -26,6 +26,7 @@ coverage.xml
 .git/modules/
 .DS_Store
 Thumbs.db
+.claude/
 
 # Build artifacts
 build/
