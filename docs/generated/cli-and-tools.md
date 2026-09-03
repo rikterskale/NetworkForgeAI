@@ -14,7 +14,7 @@ usage: networkforgeai [-h] [--target TARGET] [--scope SCOPE]
                       [--provider {openai,anthropic,google,local,litellm}]
                       [--list-tools] [--list-reports] [--show-report PATH]
                       [--validate-config] [--diagnose-config] [--preflight]
-                      [--version]
+                      [--doctor] [--json] [--strict] [--version]
 
 NetworkForgeAI authorized security validation
 
@@ -52,6 +52,13 @@ options:
                         diagnostics
   --preflight           Check selected tool, sandbox, scope, and output
                         prerequisites without scanning
+  --doctor              Run comprehensive readiness diagnostics (Python,
+                        package, Docker daemon, sandbox image, disk, memory,
+                        report dir, provider SDKs, runtime configuration)
+  --json                With --doctor, emit structured JSON instead of human-
+                        readable text
+  --strict              With --doctor, treat 'skipped' and 'unverified' checks
+                        as failure (recommended for CI readiness gates)
   --version             show program's version number and exit
 ```
 

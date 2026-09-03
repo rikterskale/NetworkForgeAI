@@ -117,6 +117,27 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Check selected tool, sandbox, scope, and output prerequisites without scanning",
     )
+    parser.add_argument(
+        "--doctor",
+        action="store_true",
+        help=(
+            "Run comprehensive readiness diagnostics (Python, package, Docker daemon, "
+            "sandbox image, disk, memory, report dir, provider SDKs, runtime configuration)"
+        ),
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="With --doctor, emit structured JSON instead of human-readable text",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help=(
+            "With --doctor, treat 'skipped' and 'unverified' checks as failure "
+            "(recommended for CI readiness gates)"
+        ),
+    )
     parser.add_argument("--version", action="version", version=f"NetworkForgeAI {__version__}")
     return parser
 
@@ -130,6 +151,8 @@ def main(argv: list[str] | None = None) -> int:
         for name, tool_class in get_available_tools().items():
             print(f"{name}\t{tool_class.risk_level.value}\t{tool_class.category.value}")
         return 0
+    if args.doctor:
+        return _run_doctor(args)
     try:
         from .config import Settings
 
@@ -461,6 +484,26 @@ async def _run(orchestrator: ScanOrchestrator, execute: bool) -> None:
         for agent_id, agent in orchestrator.agents.items():
             display.update(agent_id, agent.status.value)
         print(display.render())
+
+
+def _run_doctor(args: argparse.Namespace) -> int:
+    """Handle ``networkforgeai --doctor``.
+
+    Runs before ``Settings()`` is loaded so a broken configuration
+    still surfaces as a diagnosed failure rather than an unhandled
+    exception.
+    """
+
+    from .doctor import Doctor
+
+    report_directory = args.output_dir or os.getenv("REPORT_OUTPUT_DIR") or "./reports"
+    doctor = Doctor(strict=args.strict)
+    doctor.run(report_directory=report_directory)
+    if args.json:
+        print(json.dumps(doctor.as_dict(), indent=2))
+    else:
+        print(doctor.as_text())
+    return 0 if doctor.ok else 2
 
 
 if __name__ == "__main__":
