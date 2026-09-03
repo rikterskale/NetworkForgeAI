@@ -15,7 +15,7 @@ usage: networkforgeai [-h] [--target TARGET] [--scope SCOPE]
                       [--list-tools] [--list-reports] [--show-report PATH]
                       [--validate-config] [--diagnose-config] [--preflight]
                       [--doctor] [--json] [--strict] [--skip-preflight]
-                      [--version]
+                      [--diagnose-bundle] [--version]
 
 NetworkForgeAI authorized security validation
 
@@ -64,6 +64,10 @@ options:
                         before every real scan. Use only when a check is known
                         to misreport on the current host; --dry-run already
                         skips it.
+  --diagnose-bundle     Write a diagnostic support-bundle ZIP (versions, safe
+                        config, doctor output, tool inventory, audit-log tail;
+                        excludes secrets and target evidence) to <output-
+                        dir>/diagnostic_bundle_<timestamp>.zip
   --version             show program's version number and exit
 ```
 
